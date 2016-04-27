@@ -1,42 +1,64 @@
 module App.Seq where
+import Data.StrMap as StrMap
+import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
+import Data.Array.Unsafe (last)
+import Data.Array (zip)
+import Data.String (split)
 import App.Routes (Route(Home, NotFound))
 import Pux.Html (Html, div, p, text, table, tr, td, input)
 import Pux.Html.Attributes (className, checked, value, type_)
-import Prelude (id, const, ($), show, (<>), (<$>), Eq, Show, (==), (&&), not)
+import Prelude (id, const, ($), show, (<>), (<$>), Eq, (==), (&&), not, (<<<), map, Show)
 import Pux.Html.Events (onClick)
+import Data.Foldable (Foldable)
 import Data.Generic
 import Data.Maybe (Maybe, fromMaybe)
+
+undot :: String -> String    
+undot s = last $ split "." s
+
+data Format = Fasta | CSV
+readFormat = makeRead [Fasta, CSV]
+derive instance genericFormat :: Generic Format
+instance showFormat :: Show Format where
+  show = undot <<< gShow
+instance eqFormat :: Eq Format where 
+    eq = gEq
+    
+readHost :: String -> Maybe Host
+readHost = makeRead [Human, Mosquito]
 
 data Host = Human | Mosquito
 derive instance genericHost :: Generic Host
 instance showHost :: Show Host where
-    show = gShow 
+    show = undot <<< gShow 
 instance eqHost :: Eq Host where
     eq = gEq
+
+readSerotype = makeRead serotypes
+serotypes = [DENV1 , DENV2 , DENV3 , DENV4 , HN1 , H1N1 , H5N1 , H3N2 , H7N9]
+makeRead :: forall a. (Show a) => Array a -> (String -> Maybe a)
+makeRead xs = f 
+  where
+    f x = StrMap.lookup x m 
+      where
+        msg = "Could not coerce " <> x <> " to one of " <> (show m)
+    m = StrMap.fromFoldable $ zip (map show xs) xs
     
-data Serotype = DENV1 | DENV2 | DENV3 | DENV4 | HN1
+data Serotype = DENV1 | DENV2 | DENV3 | DENV4 | HN1 | H1N1 | H5N1 | H3N2 | H7N9
 derive instance genericSerotype :: Generic Serotype 
 instance showSerotype :: Show Serotype where
-    show = gShow 
+    show = undot <<< gShow 
 instance eqSerotype :: Eq Serotype where
     eq = gEq
     
-data Format = Fasta | CSV
-derive instance genericFormat :: Generic Format
-instance showFormat :: Show Format where
-    show = gShow 
-instance eqFormat :: Eq Format where
-    eq = gEq
-
-data Segment = PB1 | PB2 -- ... etc. 
+segments = [PB1 , PB2 , PA , HA , NP , NA , M1 , NS1]
+readSegment = makeRead [PB1 , PB2 , PA , HA , NP , NA , M1 , NS1]
+data Segment = PB1 | PB2 | PA | HA | NP | NA | M1 | NS1
+derive instance genericSegment :: Generic Segment
 instance showSegment :: Show Segment where
-  show PB1 = "PB1"
-  show PB2 = "PB2"
+  show = undot <<< gShow
 instance eqSegment :: Eq Segment where
-  eq x y = (show x) == (show y) 
-
-
-
+  eq = gEq
 
 type Year = Int 
 type State = {

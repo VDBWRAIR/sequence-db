@@ -1,4 +1,6 @@
 module App.Form where
+import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
+import Data.Generic
 import Global (encodeURIComponent)
 import App.Routes (Route)
 import Prelude --(($), map, (<>), show, const, (<<<), (&&), (<=), (>=), (<$>), (==), Eq, not)
@@ -8,6 +10,7 @@ import Pux.Html.Events (FormEvent, onChange, onSubmit, onClick, SelectionEvent, 
 import Unsafe.Coerce (unsafeCoerce)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import App.Seq as Seq
+import App.Seq (Format(Fasta,CSV), Host(..), readFormat) 
 import Data.Array (filter, nubBy, length)
 import Data.Foldable (intercalate)
 type Year = Int
@@ -23,7 +26,7 @@ type State = {    name      :: Maybe String
                  , result   :: Array Seq.State
                  , random   :: Boolean
                  , sampleSize :: Maybe Int
-                 , format   :: Seq.Format
+                 , format   :: Format
               }
 type Acc = String
 data Action =
@@ -49,7 +52,7 @@ init = { name: Nothing, country: Nothing
        , minYear : 0, maxYear : 3000
        , acc : Nothing, result : []
        , random : false, sampleSize : Nothing
-       , format : Seq.Fasta}
+       , format : Fasta}
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
 update :: Action -> State -> State
 update (RunQuery) state = state { result = nubBy Seq.stateEq $ state.result <> (query state) }
@@ -58,15 +61,15 @@ update (NameChange ev)    state = state { name =    Just ev.target.value }
 update (CountryChange ev) state = state { country = Just ev.target.value }
 update (MinYearChange ev) state = state { minYear = (unsafeCoerce ev.target.value) :: Int }
 update (MaxYearChange ev) state = state { maxYear = (unsafeCoerce ev.target.value) :: Int }
-update (HostChange ev)    state = state { host = Just (unsafeCoerce ev.target.value :: Seq.Host) }
-update (SerotypeChange ev)    state = state { serotype = Just (unsafeCoerce ev.target.value :: Seq.Serotype) }
-update (SegmentChange ev)    state = state { segment = Just (unsafeCoerce ev.target.value :: Seq.Segment) }
+update (HostChange ev)    state = state { host = Seq.readHost ev.target.value }
+update (SerotypeChange ev)    state = state { serotype = Seq.readSerotype ev.target.value }
+update (SegmentChange ev)    state = state { segment = Seq.readSegment ev.target.value }
 update (SampleSizeChange ev)    state = state { sampleSize = Just (unsafeCoerce ev.target.value :: Int ) }
 update DelteChecked     state = state { result = (filter (not <<< _.checked) state.result )}
 update ToggleRandom     state = state { random = not state.random }
 update (Child acc Seq.ToggleCheck) state = state { result = map f state.result }
   where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
-update (FormatChange ev)    state = state { format = (unsafeCoerce ev.target.value :: Seq.Format ) }
+update (FormatChange ev)    state = state { format = fromMaybe CSV $ readFormat ev.target.value  }
 
 view :: State -> Html Action
 view state = div []
@@ -75,10 +78,10 @@ view state = div []
   , onSubmit (const RunQuery)
     ]
   [ label [] [ text "Name:"], input [type_ "text", value $ fromMaybe "" state.name,    onChange NameChange ] [] 
-  , label [] [ text "Country:"], input [type_ "text", value $ fromMaybe "" state.country, onChange CountryChange ] [] 
-  , label [] [ text "Host Species:"], input [type_ "text", value $ fromMaybe "" $ show <$> state.host, onChange HostChange ] [] , br [] []
-  , label [] [ text "Segmeent (optional):"], input [type_ "text", value $ fromMaybe "" $ show <$> state.segment, onChange SegmentChange ] []
-  , label [] [ text "Serotype:"], input [type_ "text", value $ fromMaybe "" $ show <$> state.serotype, onChange SerotypeChange ] [], br [] []
+  , label [] [ text "Country:"], input [type_ "text", value $ fromMaybe "" state.country, onChange CountryChange ] [] , br [] []
+  , label [] [ text "Host Species:"], select [value $ fromMaybe "Any" $ show <$> state.host, onChange HostChange ] (toOptions [Seq.Human, Seq.Mosquito])
+  , label [] [ text "Segment (optional):"], select [value $ fromMaybe "Any" $ show <$> state.segment, onChange SegmentChange ] (toOptions Seq.segments)
+  , label [] [ text "Serotype:"], select [value $ fromMaybe "Any" $ show <$> state.serotype, onChange SerotypeChange] (toOptions Seq.serotypes), br [] []
   , label [] [ text "Minimum Year"], input [type_ "text", value $ show state.minYear, onChange MinYearChange ] []
   , label [] [ text "Maximum Year"], input [type_ "text", value $ show state.maxYear, onChange MaxYearChange ] []
   , button [ type_ "submit" ] [ text "Search" ]
@@ -95,19 +98,21 @@ view state = div []
     []
   , a [href ("data:text/plain;charset=utf-8," <> (encodeURIComponent $ toFormat state.format state.result)) ] [text "Download"]
   , label [] [text "     Format"]]
-  , select [onSelect FormatChange] [option [value $ show Seq.Fasta] [text $ show Seq.Fasta],
-               option [value $ show Seq.CSV] [text $ show Seq.CSV]]]
+  , select [value $ show state.format, onChange FormatChange]
+     [option [value "CSV"] [text "CSV"]
+    , option [value "Fasta"] [text "Fasta"]]]
 
-toFormat :: Seq.Format ->  Array Seq.State  -> String
+                                   
+toOptions xs = [(option [value "Any"] [text "Any"])] <> (map (\x -> option [value $ show x] [ text $ show x])  xs)
+
+toFormat :: Format ->  Array Seq.State  -> String
 toFormat fmt xs = case fmt of
-  Seq.Fasta -> intercalate "\n" $ map toFasta xs
-  Seq.CSV   -> header <> "\n" <> (intercalate "\n" $ map toRow xs)
+  Fasta -> intercalate "\n" $ map toFasta xs
+  CSV   -> header <> "\n" <> (intercalate "\n" $ map toRow xs)
   where
     toFasta x = x.name <> "_" <> x.acc <> "\n" <> x.sequence
     header = "name,acc,year,segment"
     toRow x = intercalate "," [x.name, x.acc, (show x.year), (show x.segment)]
---toFormat Seq.Fasta xs = intercalate "\n" $ map toFasta xs
---toFormat Seq.CSV xs = toCSV xs
 
 toCSV :: Array Seq.State -> String
 toCSV xs = header <> "\n" <> (intercalate "\n" $ map toRow xs)
