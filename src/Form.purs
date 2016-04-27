@@ -1,6 +1,6 @@
 module App.Form where
-import Global (encodeURIComponent, readInt)
-import Data.Int (fromNumber)
+import Global (encodeURIComponent) --, readInt)
+import Data.Int as Int
 import App.Routes (Route)
 import Prelude --(($), map, (<>), show, const, (<<<), (&&), (<=), (>=), (<$>), (==), Eq, not)
 import Pux.Html (Html, text, form, button, input, span, ul, div, label, a, br, p, select, option, font)
@@ -13,12 +13,15 @@ import App.Seq as Seq
 import App.Seq (Format(Fasta,CSV), Host(..), readFormat) 
 import Data.Array (filter, nubBy, length, (:))
 import Data.Foldable (intercalate, foldr)
+import Data.Date as Date  -- https://github.com/purescript/purescript-datetime
 type Year = Int
 type Error = String
 type State = {    name      :: Maybe String
                  , acc      :: Maybe String
                  , minYear  :: Year 
                  , maxYear  :: Year
+                 , minDate  :: Maybe Date.Date
+                 , maxDate  :: Maybe Date.Date
                  , country  :: Maybe String
                  , segment  :: Maybe Seq.Segment
                  , host     :: Maybe Seq.Host
@@ -35,6 +38,8 @@ data Action =
    NameChange     FormEvent
  | MinYearChange  FormEvent
  | MaxYearChange  FormEvent
+ | MinDateChange  FormEvent
+ | MaxDateChange  FormEvent
  | CountryChange  FormEvent
  | HostChange     FormEvent
  | SerotypeChange FormEvent
@@ -56,9 +61,9 @@ init = { name: Nothing, country: Nothing
        , acc : Nothing, result : []
        , random : false, sampleSize : Nothing
        , format : Fasta, genotype : Nothing
+       , minDate : Nothing, maxDate : Nothing
        , errors : M.empty }
        
-readInt' = fromNumber <<< (readInt 10)
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
 update :: Action -> State -> State
 update (RunQuery) state = state { result = nubBy Seq.stateEq $ state.result <> (query state) }
@@ -76,8 +81,10 @@ update DelteChecked     state = state { result = (filter (not <<< _.checked) sta
 update ToggleRandom     state = state { random = not state.random }
 update (Child acc Seq.ToggleCheck) state = state { result = map f state.result }
   where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
-update (FormatChange ev)    state = state { format = fromMaybe CSV $ readFormat ev.target.value  }
-strInt k state ev f g z = if (ev.target.value == "") then (f z) else withError (f <<< g) k  (readInt' ev.target.value) state
+update (FormatChange ev)  state = state { format = fromMaybe CSV $ readFormat ev.target.value  }
+update (MinDateChange ev) state = state { minDate = Date.fromString ev.target.value  }
+update (MaxDateChange ev) state = state { maxDate = Date.fromString ev.target.value  }
+strInt k state ev f g z = if (ev.target.value == "") then (f z) else withError (f <<< g) k  (Int.fromString ev.target.value) state
 withError :: forall a. (a -> State) -> String -> Maybe a -> State -> State
 withError f k Nothing state = state  { errors = (M.insert k (k <> " must be a number.") state.errors ) }
 withError f k (Just x) state = (f x) { errors = (M.delete k state.errors) }
@@ -96,6 +103,8 @@ view state = div []
   , label [] [ text "Genotype:"], select [value $ fromMaybe "Any" $ show <$> state.genotype, onChange GenotypeChange] (toOptions Seq.genotypes), br [] []
   , label [] [ text "Minimum Year"], input [type_ "text", value $ show state.minYear, onChange MinYearChange ] []
   , label [] [ text "Maximum Year"], input [type_ "text", value $ show state.maxYear, onChange MaxYearChange ] []
+  , label [] [text "Min date"], input [type_ "date", onChange MinDateChange ] []
+  , label [] [text "Max date"], input [type_ "date", onChange MaxDateChange ] []
   , button [ type_ "submit" ] [ text "Search" ]
   --, ul [] $  map ((map Child) <<< Seq.view) state.result
   , ul [] $  map (\s -> map (Child s.acc) $ Seq.view s) state.result
