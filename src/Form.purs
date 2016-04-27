@@ -1,11 +1,10 @@
 module App.Form where
-import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
-import Data.Generic
 import Global (encodeURIComponent)
 import App.Routes (Route)
 import Prelude --(($), map, (<>), show, const, (<<<), (&&), (<=), (>=), (<$>), (==), Eq, not)
-import Pux.Html (Html, text, form, button, input, span, ul, div, label, a, br, p, select, option)
-import Pux.Html.Attributes (type_, value, name, download, href, checked, disabled)
+import Pux.Html (Html, text, form, button, input, span, ul, div, label, a, br, p, select, option, font)
+import Data.StrMap as M
+import Pux.Html.Attributes (type_, value, name, download, href, checked, disabled, color, size)
 import Pux.Html.Events (FormEvent, onChange, onSubmit, onClick, SelectionEvent, onSelect)
 import Unsafe.Coerce (unsafeCoerce)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
@@ -14,7 +13,7 @@ import App.Seq (Format(Fasta,CSV), Host(..), readFormat)
 import Data.Array (filter, nubBy, length)
 import Data.Foldable (intercalate)
 type Year = Int
-
+type Error = String
 type State = {    name      :: Maybe String
                  , acc      :: Maybe String
                  , minYear  :: Year 
@@ -24,9 +23,11 @@ type State = {    name      :: Maybe String
                  , host     :: Maybe Seq.Host
                  , serotype :: Maybe Seq.Serotype
                  , result   :: Array Seq.State
+                 , genotype :: Maybe Seq.Genotype
                  , random   :: Boolean
                  , sampleSize :: Maybe Int
                  , format   :: Format
+                 , errors :: M.StrMap Error
               }
 type Acc = String
 data Action =
@@ -37,6 +38,7 @@ data Action =
  | HostChange     FormEvent
  | SerotypeChange FormEvent
  | SegmentChange  FormEvent
+ | GenotypeChange  FormEvent
  | SampleSizeChange  FormEvent
  | FormatChange SelectionEvent
  | RunQuery
@@ -52,7 +54,8 @@ init = { name: Nothing, country: Nothing
        , minYear : 0, maxYear : 3000
        , acc : Nothing, result : []
        , random : false, sampleSize : Nothing
-       , format : Fasta}
+       , format : Fasta, genotype : Nothing
+       , errors : M.empty }
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
 update :: Action -> State -> State
 update (RunQuery) state = state { result = nubBy Seq.stateEq $ state.result <> (query state) }
@@ -62,14 +65,17 @@ update (CountryChange ev) state = state { country = Just ev.target.value }
 update (MinYearChange ev) state = state { minYear = (unsafeCoerce ev.target.value) :: Int }
 update (MaxYearChange ev) state = state { maxYear = (unsafeCoerce ev.target.value) :: Int }
 update (HostChange ev)    state = state { host = Seq.readHost ev.target.value }
-update (SerotypeChange ev)    state = state { serotype = Seq.readSerotype ev.target.value }
+update (SerotypeChange ev)   state = state { serotype = Seq.readSerotype ev.target.value }
+update (GenotypeChange ev)   state = state { genotype = Seq.readGenotype ev.target.value }
 update (SegmentChange ev)    state = state { segment = Seq.readSegment ev.target.value }
-update (SampleSizeChange ev)    state = state { sampleSize = Just (unsafeCoerce ev.target.value :: Int ) }
+update (SampleSizeChange ev) state = state { sampleSize = Just (unsafeCoerce ev.target.value :: Int) }--withError (\x -> x { sampleSize = x }) "Sample Size must be na integer." ev.target.value state
 update DelteChecked     state = state { result = (filter (not <<< _.checked) state.result )}
 update ToggleRandom     state = state { random = not state.random }
 update (Child acc Seq.ToggleCheck) state = state { result = map f state.result }
   where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
 update (FormatChange ev)    state = state { format = fromMaybe CSV $ readFormat ev.target.value  }
+
+--withError f msg (Left e) state = state { errors = state.errors <> e }
 
 view :: State -> Html Action
 view state = div []
@@ -82,6 +88,7 @@ view state = div []
   , label [] [ text "Host Species:"], select [value $ fromMaybe "Any" $ show <$> state.host, onChange HostChange ] (toOptions [Seq.Human, Seq.Mosquito])
   , label [] [ text "Segment (optional):"], select [value $ fromMaybe "Any" $ show <$> state.segment, onChange SegmentChange ] (toOptions Seq.segments)
   , label [] [ text "Serotype:"], select [value $ fromMaybe "Any" $ show <$> state.serotype, onChange SerotypeChange] (toOptions Seq.serotypes), br [] []
+  , label [] [ text "Genotype:"], select [value $ fromMaybe "Any" $ show <$> state.genotype, onChange GenotypeChange] (toOptions Seq.genotypes), br [] []
   , label [] [ text "Minimum Year"], input [type_ "text", value $ show state.minYear, onChange MinYearChange ] []
   , label [] [ text "Maximum Year"], input [type_ "text", value $ show state.maxYear, onChange MaxYearChange ] []
   , button [ type_ "submit" ] [ text "Search" ]
@@ -100,7 +107,8 @@ view state = div []
   , label [] [text "     Format"]]
   , select [value $ show state.format, onChange FormatChange]
      [option [value "CSV"] [text "CSV"]
-    , option [value "Fasta"] [text "Fasta"]]]
+    , option [value "Fasta"] [text "Fasta"]], br [] []
+  , font [size 3, color "red"] [text $ intercalate "\n" state.errors ]]
 
                                    
 toOptions xs = [(option [value "Any"] [text "Any"])] <> (map (\x -> option [value $ show x] [ text $ show x])  xs)
@@ -144,6 +152,7 @@ example =  {
      , sequence : "ACTG"
      , segment  : Nothing
      , checked : false
+     , genotype : Nothing
        }
 
 example2 :: Seq.State
@@ -157,7 +166,10 @@ example2 =  {
      , sequence : "GGGGG"
      , segment  : Nothing
      , checked : false
+     , genotype : Nothing
        }
+            
+example3 :: Seq.State
 example3 =  {
        name     : "Influenza99"
      , acc      : "Acc"
@@ -168,4 +180,5 @@ example3 =  {
      , sequence : "GGGGG"
      , segment  : Just Seq.PB1
      , checked : false
+     , genotype : Nothing
        }

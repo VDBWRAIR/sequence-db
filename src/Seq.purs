@@ -70,6 +70,7 @@ type State = {
      , serotype :: Serotype
      , sequence :: String
      , segment  :: Maybe Segment
+     , genotype :: Maybe Genotype
      , checked  :: Boolean
        }
 stateEq :: State -> State -> Boolean
@@ -79,7 +80,8 @@ stateEq x y = x.name == y.name &&
               x.country  == y.country  && 
               x.host  == y.host  && 
               x.serotype  == y.serotype  && 
-              x.segment  == y.segment
+              x.segment  == y.segment &&
+              x.genotype == x.genotype
 type Acc = String              
 data Action = PageView Route | ToggleCheck
 --TODO: add action to delete/check (check for deletion / download)
@@ -94,7 +96,8 @@ view state = table []
               , td [className "country"] [ text $ "Country:  " <> state.country ] ]
           , tr []   [ td []  [ text $ "Host:  " <> show state.host ] 
                  ,  td  [] [ text $ "Serotype:  " <> show state.serotype ] 
-                 ,  td  [] [ text $ "Segment:  "  <> (fromMaybe "n/a" $ show <$> state.segment)] ]]
+                 ,  td  [] [ text $ "Segment:  "  <> (fromMaybe "n/a" $ show <$> state.segment)] 
+                 ,  td  [] [ text $ "Genotype:  "  <> (fromMaybe "n/a" $ show <$> state.genotype)] ]]
 
 update :: Action -> State -> State
 update ToggleCheck state = state { checked = not state.checked }
@@ -102,3 +105,12 @@ update _ state = state
 
 init :: State -> State
 init = id
+
+data Genotype = Genotype1
+readGenotype = makeRead genotypes
+genotypes = [Genotype1]
+derive instance genericGenotype :: Generic Genotype
+instance showGenotype :: Show Genotype where
+  show = undot <<< gShow
+instance eqGenotype :: Eq Genotype where
+  eq = gEq
