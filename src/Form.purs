@@ -11,8 +11,8 @@ import Unsafe.Coerce (unsafeCoerce)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import App.Seq as Seq
 import App.Seq (Format(Fasta,CSV), Host(..), readFormat) 
-import Data.Array (filter, nubBy, length)
-import Data.Foldable (intercalate)
+import Data.Array (filter, nubBy, length, (:))
+import Data.Foldable (intercalate, foldr)
 type Year = Int
 type Error = String
 type State = {    name      :: Maybe String
@@ -69,15 +69,15 @@ update (HostChange ev)    state = state { host = Seq.readHost ev.target.value }
 update (SerotypeChange ev)   state = state { serotype = Seq.readSerotype ev.target.value }
 update (GenotypeChange ev)   state = state { genotype = Seq.readGenotype ev.target.value }
 update (SegmentChange ev)    state = state { segment = Seq.readSegment ev.target.value }
-update (MinYearChange ev) state = state { minYear = (unsafeCoerce ev.target.value) :: Int }
-update (MaxYearChange ev) state = state { maxYear = (unsafeCoerce ev.target.value) :: Int }
-update (SampleSizeChange ev) state = strInt state ev (\x -> state { sampleSize = x })
+update (MinYearChange ev) state = strInt "Min Year" state ev (\x -> state { minYear = x }) id 0
+update (MaxYearChange ev) state = strInt "Max Year" state ev (\x -> state { maxYear = x }) id 0
+update (SampleSizeChange ev) state = strInt "Sample Size" state ev (\x -> state { sampleSize = x }) Just Nothing
 update DelteChecked     state = state { result = (filter (not <<< _.checked) state.result )}
 update ToggleRandom     state = state { random = not state.random }
 update (Child acc Seq.ToggleCheck) state = state { result = map f state.result }
   where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
 update (FormatChange ev)    state = state { format = fromMaybe CSV $ readFormat ev.target.value  }
-strInt state ev f = if (ev.target.value == "") then (f Nothing) else withError (f <<< Just) "Sample Size"  (readInt' ev.target.value) state
+strInt k state ev f g z = if (ev.target.value == "") then (f z) else withError (f <<< g) k  (readInt' ev.target.value) state
 withError :: forall a. (a -> State) -> String -> Maybe a -> State -> State
 withError f k Nothing state = state  { errors = (M.insert k (k <> " must be a number.") state.errors ) }
 withError f k (Just x) state = (f x) { errors = (M.delete k state.errors) }
@@ -113,8 +113,9 @@ view state = div []
   , select [value $ show state.format, onChange FormatChange]
      [option [value "CSV"] [text "CSV"]
     , option [value "Fasta"] [text "Fasta"]], br [] []
-  , font [size 3, color "red"] [text $ intercalate "\n" state.errors ]]
-
+    , div []  $ toArray $ map (\x -> font [size 3, color "red"] [text $ x, br [] [] ]) (M.values state.errors) ]
+   --, intercalate (br [] []) $ map (\x -> font [size 3, color "red"] [text $ x ]) (M.values state.errors) ]
+toArray xs = foldr (:) [] xs
                                    
 toOptions xs = [(option [value "Any"] [text "Any"])] <> (map (\x -> option [value $ show x] [ text $ show x])  xs)
 
