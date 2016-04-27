@@ -1,5 +1,6 @@
 module App.Form where
-import Global (encodeURIComponent)
+import Global (encodeURIComponent, readInt)
+import Data.Int (fromNumber)
 import App.Routes (Route)
 import Prelude --(($), map, (<>), show, const, (<<<), (&&), (<=), (>=), (<$>), (==), Eq, not)
 import Pux.Html (Html, text, form, button, input, span, ul, div, label, a, br, p, select, option, font)
@@ -56,26 +57,30 @@ init = { name: Nothing, country: Nothing
        , random : false, sampleSize : Nothing
        , format : Fasta, genotype : Nothing
        , errors : M.empty }
+       
+readInt' = fromNumber <<< (readInt 10)
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
 update :: Action -> State -> State
 update (RunQuery) state = state { result = nubBy Seq.stateEq $ state.result <> (query state) }
 --update (RunState) state =   state { result = ((show state.minYear) <> (show state.maxYear)) } 
 update (NameChange ev)    state = state { name =    Just ev.target.value }
 update (CountryChange ev) state = state { country = Just ev.target.value }
-update (MinYearChange ev) state = state { minYear = (unsafeCoerce ev.target.value) :: Int }
-update (MaxYearChange ev) state = state { maxYear = (unsafeCoerce ev.target.value) :: Int }
 update (HostChange ev)    state = state { host = Seq.readHost ev.target.value }
 update (SerotypeChange ev)   state = state { serotype = Seq.readSerotype ev.target.value }
 update (GenotypeChange ev)   state = state { genotype = Seq.readGenotype ev.target.value }
 update (SegmentChange ev)    state = state { segment = Seq.readSegment ev.target.value }
-update (SampleSizeChange ev) state = state { sampleSize = Just (unsafeCoerce ev.target.value :: Int) }--withError (\x -> x { sampleSize = x }) "Sample Size must be na integer." ev.target.value state
+update (MinYearChange ev) state = state { minYear = (unsafeCoerce ev.target.value) :: Int }
+update (MaxYearChange ev) state = state { maxYear = (unsafeCoerce ev.target.value) :: Int }
+update (SampleSizeChange ev) state = strInt state ev (\x -> state { sampleSize = x })
 update DelteChecked     state = state { result = (filter (not <<< _.checked) state.result )}
 update ToggleRandom     state = state { random = not state.random }
 update (Child acc Seq.ToggleCheck) state = state { result = map f state.result }
   where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
 update (FormatChange ev)    state = state { format = fromMaybe CSV $ readFormat ev.target.value  }
-
---withError f msg (Left e) state = state { errors = state.errors <> e }
+strInt state ev f = if (ev.target.value == "") then (f Nothing) else withError (f <<< Just) "Sample Size"  (readInt' ev.target.value) state
+withError :: forall a. (a -> State) -> String -> Maybe a -> State -> State
+withError f k Nothing state = state  { errors = (M.insert k (k <> " must be a number.") state.errors ) }
+withError f k (Just x) state = (f x) { errors = (M.delete k state.errors) }
 
 view :: State -> Html Action
 view state = div []
