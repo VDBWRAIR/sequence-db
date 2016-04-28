@@ -1,8 +1,16 @@
-module App.Form where
+module App.Form where 
+import Control.Monad.Eff (Eff())
 import Global (encodeURIComponent) --, readInt)
 import Data.Int as Int
+import Data.Set as Set
+import Data.List.Lazy as List
+import Data.Maybe.Unsafe (fromJust)
+--import Data.Unfoldable (replicateA)
+import Control.Monad.Eff.Random as Rand
 import App.Routes (Route)
+import Data.Traversable (sequence)
 import Prelude --(($), map, (<>), show, const, (<<<), (&&), (<=), (>=), (<$>), (==), Eq, not)
+import Pux (EffModel, noEffects)
 import Pux.Html (Html, text, form, button, input, span, ul, div, label, a, br, p, select, option, font)
 import Data.StrMap as M
 import Pux.Html.Attributes (type_, value, name, download, href, checked, disabled, color, size)
@@ -11,8 +19,9 @@ import Unsafe.Coerce (unsafeCoerce)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
 import App.Seq as Seq
 import App.Seq (Format(Fasta,CSV), Host(..), readFormat) 
-import Data.Array (filter, nubBy, length, (:))
+import Data.Array (filter, nubBy, length, (:), (!!))
 import Data.Foldable (intercalate, foldr)
+import Data.Either (Either(Left,Right))
 import Data.Date as Date  -- https://github.com/purescript/purescript-datetime
 type Year = Int
 type Error = String
@@ -47,6 +56,7 @@ data Action =
  | GenotypeChange  FormEvent
  | SampleSizeChange  FormEvent
  | FormatChange SelectionEvent
+ | RandomClicked
  | RunQuery
  | DelteChecked
  | ToggleRandom
@@ -66,28 +76,70 @@ init = { name: Nothing, country: Nothing
        
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
 update :: Action -> State -> State
-update (RunQuery) state = state { result = nubBy Seq.stateEq $ state.result <> (query state) }
---update (RunState) state =   state { result = ((show state.minYear) <> (show state.maxYear)) } 
-update (NameChange ev)    state = state { name =    Just ev.target.value }
-update (CountryChange ev) state = state { country = Just ev.target.value }
-update (HostChange ev)    state = state { host = Seq.readHost ev.target.value }
-update (SerotypeChange ev)   state = state { serotype = Seq.readSerotype ev.target.value }
-update (GenotypeChange ev)   state = state { genotype = Seq.readGenotype ev.target.value }
-update (SegmentChange ev)    state = state { segment = Seq.readSegment ev.target.value }
-update (MinYearChange ev) state = strInt "Min Year" state ev (\x -> state { minYear = x }) id 0
-update (MaxYearChange ev) state = strInt "Max Year" state ev (\x -> state { maxYear = x }) id 0
-update (SampleSizeChange ev) state = strInt "Sample Size" state ev (\x -> state { sampleSize = x }) Just Nothing
-update DelteChecked     state = state { result = (filter (not <<< _.checked) state.result )}
-update ToggleRandom     state = state { random = not state.random }
+update (RunQuery) state             = state { result = nubBy Seq.stateEq $ state.result <> (query state) }
+--update (RunState) state =   st    ate { result = ((show state.minYear) <> (show state.maxYear)) } 
+update (NameChange ev)    state     = state { name =    Just ev.target.value }
+update (CountryChange ev) state     = state { country = Just ev.target.value }
+update (HostChange ev)    state     = state { host = Seq.readHost ev.target.value }
+update (SerotypeChange ev) state    = state { serotype = Seq.readSerotype ev.target.value }
+update (GenotypeChange ev) state    = state { genotype = Seq.readGenotype ev.target.value }
+update (SegmentChange ev)  state    = state { segment = Seq.readSegment ev.target.value }
+update (MinYearChange ev) state     = strInt "Min Year" state ev (\x -> state { minYear = x }) id 0
+update (MaxYearChange ev) state     = strInt "Max Year" state ev (\x -> state { maxYear = x }) id 0
+update (SampleSizeChange ev) state  = strInt "Sample Size" state ev (\x -> state { sampleSize = x }) Just Nothing
+update DelteChecked     state       = state { result = (filter (not <<< _.checked) state.result )}
+update ToggleRandom     state       = state { random = not state.random }
+update RandomClicked     state      = state --TODO: do somethin
+update (FormatChange ev)  state     = state { format = fromMaybe CSV $ readFormat ev.target.value  }
+update (MinDateChange ev) state     = state { minDate = Date.fromString ev.target.value  }
+update (MaxDateChange ev) state     = state { maxDate = Date.fromString ev.target.value  }
 update (Child acc Seq.ToggleCheck) state = state { result = map f state.result }
   where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
-update (FormatChange ev)  state = state { format = fromMaybe CSV $ readFormat ev.target.value  }
-update (MinDateChange ev) state = state { minDate = Date.fromString ev.target.value  }
-update (MaxDateChange ev) state = state { maxDate = Date.fromString ev.target.value  }
+
+--fromEither z e = foldr (const <<< id) z e 
+--vSampleSize :: String -> Either Error Int
+vSampleSize s results = do
+  i <- foldr (const <<< Right) (Left "Sample Size must be an integer")  (Int.fromString s)
+  if (i < (length results)) then (Right i) else (Left "Sample size must be less than total result count.")
+
+handleRandom :: forall e. State -> Eff (random :: Rand.RANDOM | e) State
+handleRandom state = if ((fromMaybe 2147483647 state.sampleSize) >= (length state.result)) then
+                        return $ state { errors = M.insert "Sample Size" "Sample size must be less than total result count." state.errors }
+                      else do
+                            res <- subsample (fromJust state.sampleSize) state.result
+                            let res' = fromMaybe [] res
+                            return $ state { errors = M.delete "Sample Size" state.errors,
+                                result = res' }
+
+
+type AppEffects = (random :: Rand.RANDOM)
+
+subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Maybe (Array a))
+subsample n xs = uniqueIdxs --(fromMaybe Nothing $ sequence <$> map (!! xs)) ((<$>) <<< (<$>)) uniqueIdxs
+  where
+    uniqueIdxs = do
+       allSets <- sequence $ List.iterate f $ pure Set.empty
+       let idxs = List.head $ List.filter ((== n) <<< Set.size) allSets
+       return $ do
+          idxs' <- idxs
+          sequence $ toArray $ map (xs !! ) $ Set.toList idxs'
+--          map (!! xs) 
+--       let elems = map (!! xs) <$> idxs
+--       return sequence $ 
+    f :: forall e. Eff (random :: Rand.RANDOM | e) (Set.Set Int) -> Eff (random :: Rand.RANDOM | e) (Set.Set Int)
+    f seen = do
+          x <- Rand.randomInt 0 (length xs)
+          seen' <- seen
+          return $ Set.insert x seen'
+--handleRandom state case (vSampleSize state.sampleSize) of
+--  (Left e) -> state { errors = M.insert "Sample Size" e state.errors }
+--  (Right v) -> state { errors = M.delete "Sample Size" state.errors
+--                     , results = subsample i state.results }
 strInt k state ev f g z = if (ev.target.value == "") then (f z) else withError (f <<< g) k  (Int.fromString ev.target.value) state
-withError :: forall a. (a -> State) -> String -> Maybe a -> State -> State
-withError f k Nothing state = state  { errors = (M.insert k (k <> " must be a number.") state.errors ) }
-withError f k (Just x) state = (f x) { errors = (M.delete k state.errors) }
+  where
+    withError :: forall a. (a -> State) -> String -> Maybe a -> State -> State
+    withError f k Nothing state = state  { errors = (M.insert k (k <> " must be a number.") state.errors ) }
+    withError f k (Just x) state = (f x) { errors = (M.delete k state.errors) }
 
 view :: State -> Html Action
 view state = div []
@@ -115,15 +167,15 @@ view state = div []
            , input [type_ "checkbox", checked state.random, value "random" , onClick (const ToggleRandom)] []
            , label [] [text "Sample Size"]
            , input [disabled $ not state.random, type_ "text", value $ fromMaybe "" $ show <$> state.sampleSize, onChange SampleSizeChange] []
-           , br [] 
-    []
+           , button [ onClick (const RandomClicked)] [ text "Subset" ]
+           , br [] []
   , a [href ("data:text/plain;charset=utf-8," <> (encodeURIComponent $ toFormat state.format state.result)) ] [text "Download"]
   , label [] [text "     Format"]]
   , select [value $ show state.format, onChange FormatChange]
      [option [value "CSV"] [text "CSV"]
     , option [value "Fasta"] [text "Fasta"]], br [] []
     , div []  $ toArray $ map (\x -> font [size 3, color "red"] [text $ x, br [] [] ]) (M.values state.errors) ]
-   --, intercalate (br [] []) $ map (\x -> font [size 3, color "red"] [text $ x ]) (M.values state.errors) ]
+             
 toArray xs = foldr (:) [] xs
                                    
 toOptions xs = [(option [value "Any"] [text "Any"])] <> (map (\x -> option [value $ show x] [ text $ show x])  xs)
@@ -186,7 +238,7 @@ example2 =  {
             
 example3 :: Seq.State
 example3 =  {
-       name     : "Influenza99"
+  name     : "Influenza99"
      , acc      : "Acc"
      , year     : 1999
      , country  : "USA"

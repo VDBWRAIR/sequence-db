@@ -12,7 +12,6 @@
   "scripts": {
     "postinstall": "./node_modules/.bin/bower cache clean && ./node_modules/.bin/bower install",
     "clean": "rimraf dist && rimraf output",
-    "build": "npm run clean && set NODE_ENV=production && ./node_modules/.bin/webpack --config ./webpack.production.config.js --progress --profile --colors",
     "serve:watch": "node ./webpack.config.js",
     "serve:prod": "http-server dist --cors -p 3000",
     "start": "npm run serve:watch",
