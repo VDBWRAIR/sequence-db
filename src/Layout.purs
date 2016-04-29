@@ -28,7 +28,7 @@ init =
 
 --update :: Action -> State -> Form.RandomState
 
-update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects e)
+update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects )
 update (PageView route) state = noEffects $ state { route = route }
 --update (Child action)   state = state { count = Form.update action state.count }
 

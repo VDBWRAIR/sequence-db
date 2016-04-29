@@ -82,8 +82,8 @@ init = { name: Nothing, country: Nothing
 --update :: Action -> State -> State
        --update :: forall e. Action -> State -> Eff (random :: Rand.RANDOM | e) State
 
-type AppEffects e = (random :: Rand.RANDOM, dom :: DOM | e)
-update :: forall e. Action -> State -> EffModel State Action (AppEffects e)
+type AppEffects = (random :: Rand.RANDOM, dom :: DOM )
+update :: forall e. Action -> State -> EffModel State Action (AppEffects )
 update (RunQuery) state             = noEffects $ state { result = nubBy Seq.stateEq $ state.result <> (query state) }
 update (NameChange ev)    state     = noEffects $ state { name =    Just ev.target.value }
 update (CountryChange ev) state     = noEffects $ state { country = Just ev.target.value }

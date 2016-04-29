@@ -17,10 +17,21 @@ import App.Form (AppEffects)
   -- AppEffects defined as `type AppEffects e = (random :: Rand.RANDOM | e)`
 
 -- | App configuration
-config :: forall e. 
-          State ->
-          Eff (CoreEffects (AppEffects e))
-            (Config State Action (AppEffects e)) --(channel :: CHANNEL | eff))
+--config :: forall e. 
+--          State ->
+--          Eff (CoreEffects (AppEffects e))
+--            (Config State Actio--n (AppEffects e)) --(channel :: CHANNEL | eff))
+                                 --
+-- | Entry point for the browser.--
+main :: forall e. State -> Eff (CoreEffects (AppEffects )) (App State Action)
+main state = do
+  app <- Pux.start =<< config state
+  renderToDOM "#app" app.html
+  -- | Used by hot-reloading code in support/index.js
+  return app 
+config :: forall e. State ->
+          Eff (CoreEffects (AppEffects ))
+            (Config State Action (AppEffects )) --(channel :: CHANNEL | eff))
 config state = do
   -- | Create a signal of URL changes.
   urlSignal <- sampleUrl
@@ -32,20 +43,10 @@ config state = do
            , view : view
            , inputs : [routeSignal]}
 
--- | Entry point for the browser.
-main :: forall e. State -> Eff (CoreEffects (AppEffects e)) (App State Action)
-main state = do
-  app <- Pux.start =<< config state
-  renderToDOM "#app" app.html
-  -- | Used by hot-reloading code in support/index.js
-  return app
-
 -- | Entry point for the browser with pux-devtool injected.
-debug :: forall e. State -> Eff (CoreEffects (AppEffects e)) (App State (Pux.Devtool.Action Action))
+debug :: forall e. State -> Eff (CoreEffects (AppEffects )) (App State (Pux.Devtool.Action Action))
 debug state = do
   app <- Pux.Devtool.start =<< config state
   renderToDOM "#app" app.html
   -- | Used by hot-reloading code in support/index.js
-  return app
-
---type AppEffects = (dom :: DOM, random :: Rand.RANDOM)
+  return app 
