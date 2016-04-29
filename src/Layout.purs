@@ -32,7 +32,7 @@ update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects )
 update (PageView route) state = noEffects $ state { route = route }
 --update (Child action)   state = state { count = Form.update action state.count }
 
-update (NewTodoAction _) state = noEffects state
+update (NewTodoAction (Form.RandomState state')) state = noEffects state { count = state' }
 update (Child action) state =
     mapEffects NewTodoAction
         (mapState (\s -> state { count = s }) (Form.update action state.count))
