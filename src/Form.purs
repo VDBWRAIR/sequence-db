@@ -5,6 +5,7 @@ import Data.Int as Int
 import Data.Set as Set
 import Data.List.Lazy as List
 import Data.Maybe.Unsafe (fromJust)
+import Control.Monad.Eff.Class (liftEff)
 --import Data.Unfoldable (replicateA)
 import Control.Monad.Eff.Random as Rand
 import App.Routes (Route)
@@ -56,6 +57,7 @@ data Action =
  | GenotypeChange  FormEvent
  | SampleSizeChange  FormEvent
  | FormatChange SelectionEvent
+ | RandomState State
  | RandomClicked
  | RunQuery
  | DelteChecked
@@ -75,25 +77,31 @@ init = { name: Nothing, country: Nothing
        , errors : M.empty }
        
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
-update :: Action -> State -> State
-update (RunQuery) state             = state { result = nubBy Seq.stateEq $ state.result <> (query state) }
---update (RunState) state =   st    ate { result = ((show state.minYear) <> (show state.maxYear)) } 
-update (NameChange ev)    state     = state { name =    Just ev.target.value }
-update (CountryChange ev) state     = state { country = Just ev.target.value }
-update (HostChange ev)    state     = state { host = Seq.readHost ev.target.value }
-update (SerotypeChange ev) state    = state { serotype = Seq.readSerotype ev.target.value }
-update (GenotypeChange ev) state    = state { genotype = Seq.readGenotype ev.target.value }
-update (SegmentChange ev)  state    = state { segment = Seq.readSegment ev.target.value }
-update (MinYearChange ev) state     = strInt "Min Year" state ev (\x -> state { minYear = x }) id 0
-update (MaxYearChange ev) state     = strInt "Max Year" state ev (\x -> state { maxYear = x }) id 0
-update (SampleSizeChange ev) state  = strInt "Sample Size" state ev (\x -> state { sampleSize = x }) Just Nothing
-update DelteChecked     state       = state { result = (filter (not <<< _.checked) state.result )}
-update ToggleRandom     state       = state { random = not state.random }
-update RandomClicked     state      = state --TODO: do somethin
-update (FormatChange ev)  state     = state { format = fromMaybe CSV $ readFormat ev.target.value  }
-update (MinDateChange ev) state     = state { minDate = Date.fromString ev.target.value  }
-update (MaxDateChange ev) state     = state { maxDate = Date.fromString ev.target.value  }
-update (Child acc Seq.ToggleCheck) state = state { result = map f state.result }
+--update :: Action -> State -> State
+       --update :: forall e. Action -> State -> Eff (random :: Rand.RANDOM | e) State
+
+type AppEffects = (random :: Rand.RANDOM)
+update :: Action -> State -> EffModel State Action AppEffects
+update (RunQuery) state             = noEffects $ state { result = nubBy Seq.stateEq $ state.result <> (query state) }
+update (NameChange ev)    state     = noEffects $ state { name =    Just ev.target.value }
+update (CountryChange ev) state     = noEffects $ state { country = Just ev.target.value }
+update (HostChange ev)    state     = noEffects $ state { host = Seq.readHost ev.target.value }
+update (SerotypeChange ev) state    = noEffects $ state { serotype = Seq.readSerotype ev.target.value }
+update (GenotypeChange ev) state    = noEffects $ state { genotype = Seq.readGenotype ev.target.value }
+update (SegmentChange ev)  state    = noEffects $ state { segment = Seq.readSegment ev.target.value }
+update (MinYearChange ev) state     = noEffects $ strInt "Min Year" state ev (\x -> state { minYear = x }) id 0
+update (MaxYearChange ev) state     = noEffects $ strInt "Max Year" state ev (\x -> state { maxYear = x }) id 0
+update (SampleSizeChange ev) state  = noEffects $ strInt "Sample Size" state ev (\x -> state { sampleSize = x }) Just Nothing
+update DelteChecked     state       = noEffects $ state { result = (filter (not <<< _.checked) state.result )}
+update ToggleRandom     state       = noEffects $ state { random = not state.random }
+update (FormatChange ev)  state     = noEffects $ state { format = fromMaybe CSV $ readFormat ev.target.value  }
+update (MinDateChange ev) state     = noEffects $ state { minDate = Date.fromString ev.target.value  }
+update (MaxDateChange ev) state     = noEffects $ state { maxDate = Date.fromString ev.target.value  }
+update (RandomState state') state   = noEffects state'
+update RandomClicked     state      = { state : state, effects :  [do
+                                                                      res <- liftEff $ handleRandom state
+                                                                      return $ RandomState res] }
+update (Child acc Seq.ToggleCheck) state = noEffects $ state { result = map f state.result }
   where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
 
 --fromEither z e = foldr (const <<< id) z e 
@@ -112,7 +120,6 @@ handleRandom state = if ((fromMaybe 2147483647 state.sampleSize) >= (length stat
                                 result = res' }
 
 
-type AppEffects = (random :: Rand.RANDOM)
 
 subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Maybe (Array a))
 subsample n xs = uniqueIdxs --(fromMaybe Nothing $ sequence <$> map (!! xs)) ((<$>) <<< (<$>)) uniqueIdxs

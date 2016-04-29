@@ -10,14 +10,16 @@ import Pux (App, Config, CoreEffects, fromSimple, renderToDOM)
 import Pux.Router (sampleUrl)
 import Signal ((~>))
 import Signal.Channel (CHANNEL)
+import Control.Monad.Eff.Random as Rand
 
-type AppEffects = (dom :: DOM)
+--type AppEffects = (dom :: DOM, random :: Rand.RANDOM)
+type AppEffects = (random :: Rand.RANDOM)
 
 -- | App configuration
 config :: forall eff.
           State ->
           Eff (CoreEffects AppEffects)
-            (Config State Action (channel :: CHANNEL | eff))
+            (Config State Action AppEffects) --(channel :: CHANNEL | eff))
 config state = do
   -- | Create a signal of URL changes.
   urlSignal <- sampleUrl
@@ -27,7 +29,7 @@ config state = do
 
   return
     { initialState: state
-    , update: fromSimple update
+    , update: update
     , view: view
     , inputs: [routeSignal] }
 
