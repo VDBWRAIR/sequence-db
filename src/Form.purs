@@ -27,6 +27,8 @@ import Data.Array as A
 import Data.Foldable (intercalate, foldr)
 import Data.Either (Either(Left,Right))
 import Data.Date as Date  -- https://github.com/purescript/purescript-datetime
+
+
 type Year = Int
 type Error = String
 type State = {    name      :: Maybe String
@@ -78,12 +80,12 @@ init = { name: Nothing, country: Nothing
        , format : Fasta, genotype : Nothing
        , minDate : Nothing, maxDate : Nothing
        , errors : M.empty }
-       
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
---update :: Action -> State -> State
-       --update :: forall e. Action -> State -> Eff (random :: Rand.RANDOM | e) State
+       
 
 type AppEffects = (random :: Rand.RANDOM, dom :: DOM )
+
+
 update :: forall e. Action -> State -> EffModel State Action (AppEffects )
 update (RunQuery) state             = noEffects $ state { result = nubBy Seq.stateEq $ state.result <> (query state) }
 update (NameChange ev)    state     = noEffects $ state { name =    Just ev.target.value }
@@ -105,13 +107,7 @@ update RandomClicked     state      = { state : state, effects :  [do
                                                                       res <- liftEff $ handleRandom state
                                                                       return $ RandomState res] }
 update (Child acc Seq.ToggleCheck) state = noEffects $ state { result = map f state.result }
-  where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x -- (x {checked = not x.checked} ) else x
-
---fromEither z e = foldr (const <<< id) z e 
---vSampleSize :: String -> Either Error Int
-vSampleSize s results = do
-  i <- foldr (const <<< Right) (Left "Sample Size must be an integer")  (Int.fromString s)
-  if (i < (length results)) then (Right i) else (Left "Sample size must be less than total result count.")
+  where f x = if (x.acc == acc) then (Seq.update Seq.ToggleCheck x) else x 
 
 handleRandom :: forall e. State -> Eff (random :: Rand.RANDOM | e) State
 handleRandom state = if ((fromMaybe 2147483647 state.sampleSize) >= (length state.result)) then
@@ -129,29 +125,9 @@ shuffleArray = shuffle0 [] where
                              xs' = fromMaybe xs $ A.deleteAt i xs
                          shuffle0 acc' xs'
 
---subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Maybe (Array a))
-subsample n xs = A.take n <$> shuffleArray xs
---subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Maybe (Array a))
---subsample n xs = uniqueIdxs --(fromMaybe Nothing $ sequence <$> map (!! xs)) ((<$>) <<< (<$>)) uniqueIdxs
---  where
---    uniqueIdxs = do
---       allSets <- sequence $ List.iterate f $ pure Set.empty
---       let idxs = List.head $ List.filter ((== n) <<< Set.size) allSets
---       return $ do
---          idxs' <- idxs
---          sequence $ toArray $ map (xs !! ) $ Set.toList idxs'
-----          map (!! xs) 
-----       let elems = map (!! xs) <$> idxs
-----       return sequence $ 
---    f :: forall e. Eff (random :: Rand.RANDOM | e) (Set.Set Int) -> Eff (random :: Rand.RANDOM | e) (Set.Set Int)
---    f seen = do
---          x <- Rand.randomInt 0 (length xs)
---          seen' <- seen
---          return $ Set.insert x seen'
---handleRandom state case (vSampleSize state.sampleSize) of
---  (Left e) -> state { errors = M.insert "Sample Size" e state.errors }
---  (Right v) -> state { errors = M.delete "Sample Size" state.errors
---                     , results = subsample i state.results }
+subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Array a)
+subsample n xs = A.take n <$> shuffleArray xs 
+
 strInt k state ev f g z = if (ev.target.value == "") then (f z) else withError (f <<< g) k  (Int.fromString ev.target.value) state
   where
     withError :: forall a. (a -> State) -> String -> Maybe a -> State -> State
@@ -175,7 +151,6 @@ view state = div []
   , label [] [text "Min date"], input [type_ "date", onChange MinDateChange ] []
   , label [] [text "Max date"], input [type_ "date", onChange MaxDateChange ] []
   , button [ type_ "submit" ] [ text "Search" ]
-  --, ul [] $  map ((map Child) <<< Seq.view) state.result
   , ul [] $  map (\s -> map (Child s.acc) $ Seq.view s) state.result
     ]
   , button [ onClick (const DelteChecked)] [ text "Delete" ],
@@ -192,9 +167,8 @@ view state = div []
      [option [value "CSV"] [text "CSV"]
     , option [value "Fasta"] [text "Fasta"]], br [] []
     , div []  $ toArray $ map (\x -> font [size 3, color "red"] [text $ x, br [] [] ]) (M.values state.errors) ]
-             
-toArray xs = foldr (:) [] xs
-                                   
+    
+toArray xs = foldr (:) [] xs 
 toOptions xs = [(option [value "Any"] [text "Any"])] <> (map (\x -> option [value $ show x] [ text $ show x])  xs)
 
 toFormat :: Format ->  Array Seq.State  -> String

@@ -15,39 +15,31 @@ import Data.Maybe
 data Action
   = Child (Form.Action)
   | PageView Route
-  | NewTodoAction Form.Action  
+  | DoChildAction Form.Action  
 
 type State =
   { route :: Route
-  , count :: Form.State }
+  , form :: Form.State }
 
 init :: State
 init =
   { route: NotFound
-  , count: Form.init }
+  , form: Form.init }
 
---update :: Action -> State -> Form.RandomState
 
 update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects )
-update (PageView route) state = noEffects $ state { route = route }
---update (Child action)   state = state { count = Form.update action state.count }
-
-update (NewTodoAction (Form.RandomState state')) state = noEffects state { count = state' }
-update (Child action) state =
-    mapEffects NewTodoAction
-        (mapState (\s -> state { count = s }) (Form.update action state.count))
---update (Child action) state = do
---                                new <- Form.update action state.count
---                                return $ { state : state  { count = new }
---                                         , effects : [] }
+update (PageView route) state = noEffects $ state { route = route } 
+update (DoChildAction (Form.RandomState state')) state = noEffects state { form = state' }
+-- simply pass along the child From's actions 
+update (Child action) state = mapEffects DoChildAction
+          (mapState (\s -> state { form = s }) (Form.update action state.form))
 
 view :: State -> Html Action
 view state =
   div
     []
     [ h1 [] [ text "Search for sequences" ]
-    , p [] [ text "Change src/Layout.purs and watch me hot-reload." ]
     , case state.route of
-        Home -> map Child $ Form.view state.count
+        Home -> map Child $ Form.view state.form
         NotFound -> App.NotFound.view state
     ]
