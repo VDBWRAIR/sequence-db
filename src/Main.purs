@@ -5,10 +5,12 @@ import App.Layout (Action(PageView), State, view, update)
 import Control.Bind ((=<<))
 import Control.Monad.Eff (Eff)
 import Prelude (bind, return, ($))
+import Data.Maybe 
 import Pux (App, Config, CoreEffects, fromSimple, renderToDOM)
 import Pux.Router (sampleUrl)
 import Signal ((~>))
 import App.Form (AppEffects)
+import App.Form as Form
   -- AppEffects must be defined as a closed record with DOM and RANDOM
 
 -- | Entry point for the browser.--
@@ -27,7 +29,7 @@ config state = do
 
   -- | Map a signal of URL changes to PageView actions.
   let routeSignal = urlSignal ~> \r -> PageView (match r)
-  return { initialState : state
+  return { initialState : state { form =  Form.init { name = Just "foo"}  }
            , update : update
            , view : view
            , inputs : [routeSignal]}

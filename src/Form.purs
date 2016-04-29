@@ -47,6 +47,7 @@ type State = {    name      :: Maybe String
                  , sampleSize :: Maybe Int
                  , format   :: Format
                  , errors :: M.StrMap Error
+                 --, db :: Array Seq.State
               }
 type Acc = String
 data Action =
