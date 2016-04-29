@@ -19,10 +19,11 @@ import Data.StrMap as M
 import Pux.Html.Attributes (type_, value, name, download, href, checked, disabled, color, size)
 import Pux.Html.Events (FormEvent, onChange, onSubmit, onClick, SelectionEvent, onSelect)
 import Unsafe.Coerce (unsafeCoerce)
-import Data.Maybe (Maybe(Nothing, Just), fromMaybe)
+import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import App.Seq as Seq
 import App.Seq (Format(Fasta,CSV), Host(..), readFormat) 
 import Data.Array (filter, nubBy, length, (:), (!!))
+import Data.Array as A
 import Data.Foldable (intercalate, foldr)
 import Data.Either (Either(Left,Right))
 import Data.Date as Date  -- https://github.com/purescript/purescript-datetime
@@ -117,29 +118,36 @@ handleRandom state = if ((fromMaybe 2147483647 state.sampleSize) >= (length stat
                         return $ state { errors = M.insert "Sample Size" "Sample size must be less than total result count." state.errors }
                       else do
                             res <- subsample (fromJust state.sampleSize) state.result
-                            let res' = fromMaybe [] res
                             return $ state { errors = M.delete "Sample Size" state.errors,
-                                result = res' }
+                                result = res }
+                              
+--shuffleArray :: forall f a. (Monad f) => Array a -> GenT f (Array a)
+shuffleArray = shuffle0 [] where
+    shuffle0 acc [] = pure $ acc
+    shuffle0 acc xs = do i <- Rand.randomInt 0 (A.length xs - 1)
+                         let acc' = acc <> (maybe [] A.singleton (xs A.!! i))
+                             xs' = fromMaybe xs $ A.deleteAt i xs
+                         shuffle0 acc' xs'
 
-
-
-subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Maybe (Array a))
-subsample n xs = uniqueIdxs --(fromMaybe Nothing $ sequence <$> map (!! xs)) ((<$>) <<< (<$>)) uniqueIdxs
-  where
-    uniqueIdxs = do
-       allSets <- sequence $ List.iterate f $ pure Set.empty
-       let idxs = List.head $ List.filter ((== n) <<< Set.size) allSets
-       return $ do
-          idxs' <- idxs
-          sequence $ toArray $ map (xs !! ) $ Set.toList idxs'
---          map (!! xs) 
---       let elems = map (!! xs) <$> idxs
---       return sequence $ 
-    f :: forall e. Eff (random :: Rand.RANDOM | e) (Set.Set Int) -> Eff (random :: Rand.RANDOM | e) (Set.Set Int)
-    f seen = do
-          x <- Rand.randomInt 0 (length xs)
-          seen' <- seen
-          return $ Set.insert x seen'
+--subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Maybe (Array a))
+subsample n xs = A.take n <$> shuffleArray xs
+--subsample :: forall a e. Int -> Array a -> Eff (random :: Rand.RANDOM | e) (Maybe (Array a))
+--subsample n xs = uniqueIdxs --(fromMaybe Nothing $ sequence <$> map (!! xs)) ((<$>) <<< (<$>)) uniqueIdxs
+--  where
+--    uniqueIdxs = do
+--       allSets <- sequence $ List.iterate f $ pure Set.empty
+--       let idxs = List.head $ List.filter ((== n) <<< Set.size) allSets
+--       return $ do
+--          idxs' <- idxs
+--          sequence $ toArray $ map (xs !! ) $ Set.toList idxs'
+----          map (!! xs) 
+----       let elems = map (!! xs) <$> idxs
+----       return sequence $ 
+--    f :: forall e. Eff (random :: Rand.RANDOM | e) (Set.Set Int) -> Eff (random :: Rand.RANDOM | e) (Set.Set Int)
+--    f seen = do
+--          x <- Rand.randomInt 0 (length xs)
+--          seen' <- seen
+--          return $ Set.insert x seen'
 --handleRandom state case (vSampleSize state.sampleSize) of
 --  (Left e) -> state { errors = M.insert "Sample Size" e state.errors }
 --  (Right v) -> state { errors = M.delete "Sample Size" state.errors
