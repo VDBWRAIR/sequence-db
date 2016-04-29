@@ -1,5 +1,7 @@
 module App.Form where 
 import Control.Monad.Eff (Eff())
+import DOM (DOM)
+import  Control.Monad.Eff.Exception (EXCEPTION)
 import Global (encodeURIComponent) --, readInt)
 import Data.Int as Int
 import Data.Set as Set
@@ -80,8 +82,8 @@ init = { name: Nothing, country: Nothing
 --update :: Action -> State -> State
        --update :: forall e. Action -> State -> Eff (random :: Rand.RANDOM | e) State
 
-type AppEffects = (random :: Rand.RANDOM)
-update :: Action -> State -> EffModel State Action AppEffects
+type AppEffects e = (random :: Rand.RANDOM, dom :: DOM | e)
+update :: forall e. Action -> State -> EffModel State Action (AppEffects e)
 update (RunQuery) state             = noEffects $ state { result = nubBy Seq.stateEq $ state.result <> (query state) }
 update (NameChange ev)    state     = noEffects $ state { name =    Just ev.target.value }
 update (CountryChange ev) state     = noEffects $ state { country = Just ev.target.value }

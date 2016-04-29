@@ -5,36 +5,35 @@ import App.Layout (Action(PageView), State, view, update)
 import Control.Bind ((=<<))
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
-import Prelude (bind, return)
+import Prelude (bind, return, ($))
 import Pux (App, Config, CoreEffects, fromSimple, renderToDOM)
 import Pux.Router (sampleUrl)
 import Signal ((~>))
 import Signal.Channel (CHANNEL)
 import Control.Monad.Eff.Random as Rand
-
---type AppEffects = (dom :: DOM, random :: Rand.RANDOM)
-type AppEffects = (random :: Rand.RANDOM)
+import Control.Monad.Aff.Class (liftAff)
+import Control.Monad.Eff.Class (liftEff)
+import App.Form (AppEffects)
+  -- AppEffects defined as `type AppEffects e = (random :: Rand.RANDOM | e)`
 
 -- | App configuration
-config :: forall eff.
+config :: forall e. 
           State ->
-          Eff (CoreEffects AppEffects)
-            (Config State Action AppEffects) --(channel :: CHANNEL | eff))
+          Eff (CoreEffects (AppEffects e))
+            (Config State Action (AppEffects e)) --(channel :: CHANNEL | eff))
 config state = do
   -- | Create a signal of URL changes.
   urlSignal <- sampleUrl
 
   -- | Map a signal of URL changes to PageView actions.
   let routeSignal = urlSignal ~> \r -> PageView (match r)
-
-  return
-    { initialState: state
-    , update: update
-    , view: view
-    , inputs: [routeSignal] }
+  return { initialState : state
+           , update : update
+           , view : view
+           , inputs : [routeSignal]}
 
 -- | Entry point for the browser.
-main :: State -> Eff (CoreEffects AppEffects) (App State Action)
+main :: forall e. State -> Eff (CoreEffects (AppEffects e)) (App State Action)
 main state = do
   app <- Pux.start =<< config state
   renderToDOM "#app" app.html
@@ -42,9 +41,11 @@ main state = do
   return app
 
 -- | Entry point for the browser with pux-devtool injected.
-debug :: State -> Eff (CoreEffects AppEffects) (App State (Pux.Devtool.Action Action))
+debug :: forall e. State -> Eff (CoreEffects (AppEffects e)) (App State (Pux.Devtool.Action Action))
 debug state = do
   app <- Pux.Devtool.start =<< config state
   renderToDOM "#app" app.html
   -- | Used by hot-reloading code in support/index.js
   return app
+
+--type AppEffects = (dom :: DOM, random :: Rand.RANDOM)
