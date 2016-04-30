@@ -13,6 +13,8 @@
       "purescript-generics" : "^0.7.2",
       "purescript-globals" : "^0.2.2",
       "purescript-random" : "^0.2.3",
-      "purescript-sets" : "^0.5.6"
+      "purescript-sets" : "^0.5.6",
+      "purescript-eulalie" : "^1.0.0"
+
   }
 }

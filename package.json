@@ -10,6 +10,7 @@
     "starter-app"
   ],
   "scripts": {
+       "build": "npm run clean && set NODE_ENV=production && ./node_modules/.bin/webpack --config ./webpack.production.config.js --progress --profile --colors",
     "postinstall": "./node_modules/.bin/bower cache clean && ./node_modules/.bin/bower install",
     "clean": "rimraf dist && rimraf output",
     "serve:watch": "node ./webpack.config.js",

@@ -12,6 +12,9 @@ import Pux.Html.Events (onClick)
 import Data.Foldable (Foldable)
 import Data.Generic
 import Data.Maybe (Maybe, fromMaybe)
+--import Data.Eulalie.Parser as P
+--import Data.Eulalie.String as S
+
 
 undot :: String -> String    
 undot s = last $ split "." s
