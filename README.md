@@ -7,6 +7,14 @@ time-travel debug using
 
 See the [Guide](https://alexmingoia.github.io/purescript-pux) for help learning
 Pux.
+## With Electron
+```sh
+npm run build
+cp -r dist/ ../purescript-electron-quickstart
+cd ../purescript-electron-quickstart
+# edit dist/index.html's routes to app.css and js file routes to be relative (/ -> ./)
+npm start # also can be opened `firefox dist/index.html`
+```
 
 ![Pux starter app animation](support/pux-starter-app.gif)
 

@@ -38,8 +38,9 @@ view :: State -> Html Action
 view state =
   div
     []
-    [ h1 [] [ text "Search for sequences" ]
+    [ h1 [] [ text "Search for Dengue Sequences" ]
     , case state.route of
         Home -> map Child $ Form.view state.form
-        NotFound -> App.NotFound.view state
+        _ -> map Child $ Form.view state.form
+        --NotFound -> App.NotFound.view state
     ]
