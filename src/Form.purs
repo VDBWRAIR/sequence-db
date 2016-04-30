@@ -24,6 +24,7 @@ import App.Seq as Seq
 import App.Seq (Format(Fasta,CSV), Host(..), readFormat) 
 import Data.Array (filter, nubBy, length, (:), (!!))
 import Data.Array as A
+import Data.String as S
 import Data.Foldable (intercalate, foldr)
 import Data.Either (Either(Left,Right))
 import Data.Date as Date  -- https://github.com/purescript/purescript-datetime
@@ -86,11 +87,12 @@ init = { name: Nothing, country: Nothing
 
 type AppEffects = (random :: Rand.RANDOM, dom :: DOM )
 
+strToMaybe xs = if (S.null $ S.trim xs) then Nothing else Just xs
 
 update :: forall e. Action -> State -> EffModel State Action (AppEffects )
 update (RunQuery) state             = noEffects $ state { result = nubBy Seq.stateEq $ state.result <> (query state) }
-update (NameChange ev)    state     = noEffects $ state { name =    Just ev.target.value }
-update (CountryChange ev) state     = noEffects $ state { country = Just ev.target.value }
+update (NameChange ev)    state     = noEffects $ state { name =    strToMaybe ev.target.value }
+update (CountryChange ev) state     = noEffects $ state { country = strToMaybe ev.target.value }
 update (HostChange ev)    state     = noEffects $ state { host = Seq.readHost ev.target.value }
 update (SerotypeChange ev) state    = noEffects $ state { serotype = Seq.readSerotype ev.target.value }
 update (GenotypeChange ev) state    = noEffects $ state { genotype = Seq.readGenotype ev.target.value }
