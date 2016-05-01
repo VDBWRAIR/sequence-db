@@ -68,6 +68,7 @@ data Action =
  | SampleSizeChange  FormEvent
  | FormatChange SelectionEvent
  | RandomState State
+ | ToggleAllChecked
  | RandomClicked
  | RunQuery
  | DelteChecked
@@ -110,6 +111,7 @@ update (FormatChange ev)  state     = noEffects $ state { format = fromMaybe CSV
 update (MinDateChange ev) state     = noEffects $ state { minDate = Date.fromString ev.target.value  }
 update (MaxDateChange ev) state     = noEffects $ state { maxDate = Date.fromString ev.target.value  }
 update (RandomState state') state   = noEffects state'
+update ToggleAllChecked     state    = noEffects $ state { result = map (\s -> s { checked = not s.checked} ) state.result } 
 update RandomClicked     state      = { state : state, effects :  [do
                                                                       res <- liftEff $ handleRandom state
                                                                       return $ RandomState res] }
@@ -168,6 +170,8 @@ view state = div []
   , label [] [text "Min date"], input [type_ "date", onChange MinDateChange ] []
   , label [] [text "Max date"], input [type_ "date", onChange MaxDateChange ] []
   , button [ type_ "submit" ] [ text "Search" ]
+  , br [] [] 
+  , input [type_ "checkbox",value "random" , onClick (const ToggleAllChecked)] [] 
   , ul [] $  map (\s -> map (Child s.acc) $ Seq.view s) state.result
     ]
   , button [ onClick (const DelteChecked)] [ text "Delete" ],
