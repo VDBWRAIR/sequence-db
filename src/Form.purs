@@ -11,10 +11,12 @@ import Control.Monad.Eff.Class (liftEff)
 --import Data.Unfoldable (replicateA)
 import Control.Monad.Eff.Random as Rand
 import App.Routes (Route)
-import Data.Traversable (sequence)
+import Data.Traversable (sequence) 
 import Prelude --(($), map, (<>), show, const, (<<<), (&&), (<=), (>=), (<$>), (==), Eq, not)
 import Pux (EffModel, noEffects)
 import Pux.Html (Html, text, form, button, input, span, ul, div, label, a, br, p, select, option, font)
+import Pux.Html as H
+import Pux.Html.Attributes as At
 import Data.StrMap as M
 import Pux.Html.Attributes (type_, value, name, download, href, checked, disabled, color, size)
 import Pux.Html.Events (FormEvent, onChange, onSubmit, onClick, SelectionEvent, onSelect)
@@ -48,6 +50,7 @@ type State = {    name      :: Maybe String
                  , sampleSize :: Maybe Int
                  , format   :: Format
                  , errors :: M.StrMap Error
+                 , db :: Array Seq.State
                  --, db :: Array Seq.State
               }
 type Acc = String
@@ -81,7 +84,8 @@ init = { name: Nothing, country: Nothing
        , random : false, sampleSize : Nothing
        , format : Fasta, genotype : Nothing
        , minDate : Nothing, maxDate : Nothing
-       , errors : M.empty }
+       , errors : M.empty
+       , db : seqs}
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
        
 
@@ -143,8 +147,18 @@ view state = div []
   [ name "Search"
   , onSubmit (const RunQuery)
     ]
-  [ label [] [ text "Name:"], input [type_ "text", value $ fromMaybe "" state.name,    onChange NameChange ] [] 
-  , label [] [ text "Country:"], input [type_ "text", value $ fromMaybe "" state.country, onChange CountryChange ] [] , br [] []
+  [ label [] [ text "Name:"], input [ type_ "text"
+                                   , value $ fromMaybe "" state.name
+                                   , onChange NameChange
+                                   , At.list "nameList" ] []
+                              , autoCompleteList "nameList" $ map _.name state.db
+  , label [] [ text "Country:"], input
+                                 [ type_ "text"
+                                 , value $ fromMaybe "" state.country
+                                 , onChange CountryChange
+                                 , At.list "countryList" ] []
+                              , autoCompleteList "countryList" $ map _.country state.db
+  , br [] [] 
   , label [] [ text "Host Species:"], select [value $ fromMaybe "Any" $ show <$> state.host, onChange HostChange ] (toOptions [Seq.Human, Seq.Mosquito])
   , label [] [ text "Segment (optional):"], select [value $ fromMaybe "Any" $ show <$> state.segment, onChange SegmentChange ] (toOptions Seq.segments)
   , label [] [ text "Serotype:"], select [value $ fromMaybe "Any" $ show <$> state.serotype, onChange SerotypeChange] (toOptions Seq.serotypes), br [] []
@@ -170,7 +184,9 @@ view state = div []
      [option [value "CSV"] [text "CSV"]
     , option [value "Fasta"] [text "Fasta"]], br [] []
     , div []  $ toArray $ map (\x -> font [size 3, color "red"] [text $ x, br [] [] ]) (M.values state.errors) ]
-    
+             
+autoCompleteList id' xs = H.datalist [At.id_ id'] $ toArray $ map (\x -> H.option [At.label x, At.value x] []) xs
+                  
 toArray xs = foldr (:) [] xs 
 toOptions xs = [(option [value "Any"] [text "Any"])] <> (map (\x -> option [value $ show x] [ text $ show x])  xs)
 
@@ -243,3 +259,5 @@ example3 =  {
      , checked : false
      , genotype : Nothing
        }
+            
+  -- [ option [label x, value x] []]
