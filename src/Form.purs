@@ -7,6 +7,7 @@ import Data.Int as Int
 import Data.Set as Set
 import Data.List.Lazy as List
 import Data.Maybe.Unsafe (fromJust)
+import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
 import Control.Monad.Eff.Class (liftEff)
 --import Data.Unfoldable (replicateA)
 import Control.Monad.Eff.Random as Rand
@@ -20,7 +21,6 @@ import Pux.Html.Attributes as At
 import Data.StrMap as M
 import Pux.Html.Attributes (type_, value, name, download, href, checked, disabled, color, size)
 import Pux.Html.Events (FormEvent, onChange, onSubmit, onClick, SelectionEvent, onSelect)
-import Unsafe.Coerce (unsafeCoerce)
 import Data.Maybe (Maybe(Nothing, Just), fromMaybe, maybe)
 import App.Seq as Seq
 import App.Seq (Format(Fasta,CSV), Host(..), readFormat) 
@@ -43,6 +43,7 @@ type State = {    name      :: Maybe String
                  , country  :: Maybe String
                  , segment  :: Maybe Seq.Segment
                  , host     :: Maybe Seq.Host
+                 , hostString :: Maybe String
                  , serotype :: Maybe Seq.Serotype
                  , result   :: Array Seq.State
                  , genotype :: Maybe Seq.Genotype
@@ -62,6 +63,7 @@ data Action =
  | MaxDateChange  FormEvent
  | CountryChange  FormEvent
  | HostChange     FormEvent
+ | HostStringChange     FormEvent
  | SerotypeChange FormEvent
  | SegmentChange  FormEvent
  | GenotypeChange  FormEvent
@@ -86,7 +88,8 @@ init = { name: Nothing, country: Nothing
        , format : Fasta, genotype : Nothing
        , minDate : Nothing, maxDate : Nothing
        , errors : M.empty
-       , db : seqs}
+       , db : seqs
+       , hostString : Nothing }
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
        
 
@@ -99,6 +102,7 @@ update (RunQuery) state             = noEffects $ state { result = nubBy Seq.sta
 update (NameChange ev)    state     = noEffects $ state { name =    strToMaybe ev.target.value }
 update (CountryChange ev) state     = noEffects $ state { country = strToMaybe ev.target.value }
 update (HostChange ev)    state     = noEffects $ state { host = Seq.readHost ev.target.value }
+update (HostStringChange ev)    state     = noEffects $ state { hostString = strToMaybe ev.target.value } 
 update (SerotypeChange ev) state    = noEffects $ state { serotype = Seq.readSerotype ev.target.value }
 update (GenotypeChange ev) state    = noEffects $ state { genotype = Seq.readGenotype ev.target.value }
 update (SegmentChange ev)  state    = noEffects $ state { segment = Seq.readSegment ev.target.value }
@@ -143,24 +147,24 @@ strInt k state ev f g z = if (ev.target.value == "") then (f z) else withError (
     withError f k Nothing state = state  { errors = (M.insert k (k <> " must be a number.") state.errors ) }
     withError f k (Just x) state = (f x) { errors = (M.delete k state.errors) }
 
+makeInput :: forall a. String -> (State -> Maybe String) -> (Seq.State -> String) ->
+             (FormEvent -> Action) -> State -> (Html Action)
+makeInput name stateAttr dbAttr action state = label [] [ text (name ++ ":")
+                                , input [ type_ "text"
+                                    , value $ fromMaybe "" (stateAttr state)
+                                    , onChange action
+                                    , At.list name ] []
+                                , autoCompleteList name $ map dbAttr state.db ]
 view :: State -> Html Action
 view state = div []
   [form
   [ name "Search"
   , onSubmit (const RunQuery)
     ]
-  [ label [] [ text "Name:"], input [ type_ "text"
-                                   , value $ fromMaybe "" state.name
-                                   , onChange NameChange
-                                   , At.list "nameList" ] []
-                              , autoCompleteList "nameList" $ map _.name state.db
-  , label [] [ text "Country:"], input
-                                 [ type_ "text"
-                                 , value $ fromMaybe "" state.country
-                                 , onChange CountryChange
-                                 , At.list "countryList" ] []
-                              , autoCompleteList "countryList" $ map _.country state.db
+  [makeInput "Name" _.name _.name NameChange state
+ , makeInput "Country" _.country _.country CountryChange state
   , br [] [] 
+ , makeInput "Host" _.hostString _.hostString HostStringChange state
   , label [] [ text "Host Species:"], select [value $ fromMaybe "Any" $ show <$> state.host, onChange HostChange ] (toOptions [Seq.Human, Seq.Mosquito])
   , label [] [ text "Segment (optional):"], select [value $ fromMaybe "Any" $ show <$> state.segment, onChange SegmentChange ] (toOptions Seq.segments)
   , label [] [ text "Serotype:"], select [value $ fromMaybe "Any" $ show <$> state.serotype, onChange SerotypeChange] (toOptions Seq.serotypes), br [] []
@@ -189,7 +193,7 @@ view state = div []
     , option [value "Fasta"] [text "Fasta"]], br [] []
     , div []  $ toArray $ map (\x -> font [size 3, color "red"] [text $ x, br [] [] ]) (M.values state.errors) ]
              
-autoCompleteList id' xs = H.datalist [At.id_ id'] $ toArray $ map (\x -> H.option [At.label x, At.value x] []) xs
+autoCompleteList id' xs = H.datalist [At.id_ id'] $ toArray $ map (\x -> H.option [At.label x, At.value x] []) $ A.nub xs
                   
 toArray xs = foldr (:) [] xs 
 toOptions xs = [(option [value "Any"] [text "Any"])] <> (map (\x -> option [value $ show x] [ text $ show x])  xs)
@@ -234,6 +238,10 @@ example =  {
      , segment  : Nothing
      , checked : false
      , genotype : Nothing
+     , month : Nothing
+     , day : Nothing
+     , hostString : "Foohhost"
+     , date : fromJust $ Date.fromString "08/12/12"
        }
 
 example2 :: Seq.State
@@ -248,6 +256,10 @@ example2 =  {
      , segment  : Nothing
      , checked : false
      , genotype : Nothing
+     , month : Nothing
+     , day : Nothing
+     , hostString : "Foohhost"
+     , date : fromJust $ Date.fromString "08/12/12"
        }
             
 example3 :: Seq.State
@@ -255,8 +267,12 @@ example3 =  {
   name     : "Influenza99"
      , acc      : "Acc"
      , year     : 1999
+     , month : Nothing
+     , day : Nothing
+     , date : fromJust  $ Date.fromString "08/12/12"
      , country  : "USA"
      , host     : Seq.Human
+     , hostString : "Foohhost"
      , serotype : Seq.HN1
      , sequence : "GGGGG"
      , segment  : Just Seq.PB1

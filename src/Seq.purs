@@ -4,12 +4,15 @@ import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
 import Data.Array.Unsafe (last)
 import Data.Array (zip)
 import Data.String (split)
+import Data.Traversable (sequence)
+import Data.Date as Date
+import Data.Either
 import App.Routes (Route(Home, NotFound))
 import Pux.Html (Html, div, p, text, table, tr, td, input)
 import Pux.Html.Attributes (className, checked, value, type_)
 import Prelude --(id, const, ($), show, (<>), (<$>), Eq, (==), (&&), not, (<<<), map, Show)
 import Pux.Html.Events (onClick)
-import Data.Foldable (Foldable)
+import Data.Foldable (Foldable, intercalate)
 import Data.Generic
 import Data.Maybe (Maybe, fromMaybe) 
 --import Text.Parsing.CSV (defaultParsers, makeParsers)
@@ -82,46 +85,80 @@ type Year = Int
 type State = {
        name     :: String
      , acc      :: String
-     , year     :: Year 
      , country  :: String 
      , host     :: Host
      , serotype :: Serotype
-     , sequence :: String
      , segment  :: Maybe Segment
      , genotype :: Maybe Genotype
+     , sequence :: String
+     , hostString :: String
      , checked  :: Boolean
+     , date     :: Date.Date
+     , month :: Maybe Int
+     , year :: Int
+     , day :: Maybe Int
      }
              
 --columns = map fst [("name", id') ,  ("acc", id') ,  ("country", id') ,  ("year", Int.fromString) ,  ("host", readHost) ,  ("seortype", readSegment) ,  ("segment", maybe' readSegment) ,  ("genotype", maybe' readGenotype)]
 
 -- TODO: include Dates
+toEither _ (Just x) = Right x
+toEither z Nothing  = Left z
+
 columns :: Array String 
-columns = ["name", "acc", "country", "year", "host", "serotype", "segment", "genotype"]
+columns = ["name", "acc", "country",  "year", "host", "serotype", "segment", "genotype", "month", "day", "sequence"]
 --    applyRow row = zipWith ($) funcs row
 --    funcs = map snd $ A.sortBy headerOrder columns
-readCSV :: String -> String -> Maybe (Array State)
-readCSV sep s = process <$> (A.head lines') <*> (A.tail lines')
+--readCSV :: String -> String -> Maybe (Array State)
+readCSV :: String -> String -> Either Error (Array State)
+--readCSV sep s = process <$> (toEither "no head" $ A.head lines') <*> (toEither "no tail" $ A.tail lines')
+readCSV sep s = do
+                  head <- (toEither "no head" $ A.head lines')
+                  rows <- (toEither "no tail" $ A.tail lines')
+                  process head rows
   where
     lines' = map (S.split sep) $ lines s
     lines  = S.split "\n"
-        
-process :: Array String -> Array (Array String) -> Array State
-process header rows = map process' rows
+    
+type Error = String        
+process :: Array String -> Array (Array String) -> Either Error (Array State)
+process header rows = sequence $ map process' rows
   where
-    process' :: Array String -> State
-    process' row = {
-      name : (row `at` 0)
-    , acc  : (row `at` 1)
-    , country : (row `at` 2)
-    , year : fromMaybe 0 $ Int.fromString (row `at` 3)
-    , host : fromMaybe Human $ readHost (row `at` 3)
-    , serotype : fromMaybe DENV4 $ readSerotype (row `at` 4)
-    , segment : readSegment (row `at` 5)
-    , genotype : readGenotype (row `at` 6)
-    , checked : false
-    , sequence : "DummySeq"
-    }
-      where at = unsafeIndex
+    --process' row | (A.length row) < (A.length columns) = Left ("Row not have expected length " ++ (show $ A.length columns) ++ " found length " ++ (show $ A.length row) )
+    process' :: Array String -> Either Error State
+    process' row = do
+     name <- Right $ row `at` "name"
+     acc  <- Right $ row `at` "acc"
+     country <- Right $ row `at` "country"
+     year <- toEither "bad year" $ Int.fromString (row `at` "year")
+     host <- toEither "Bad host" $ readHost (row `at` "host")
+     serotype <-  toEither "Bad serotype" $ readSerotype (row `at` "serotype")
+     let hostString = (row `at` "host")
+     let segment = readSegment $ (row `at` "segement")
+     let genotype = readGenotype $ (row `at` "genotype")
+     let month = (Int.fromString (row `at` "month"))
+     let day = Int.fromString (row `at` "day") 
+     sequence' <-  Right $ row `at` "sequence"
+     date <- toEither "bad date parse" $ Date.fromString ((show year) ++ "/" ++ (fromMaybe "6" $ show <$> month) ++ "/" ++ (fromMaybe "15" $ show <$> day))
+     pure {   name : name
+            , acc : acc
+            , country : country
+            , date : date
+            , host : host
+            , serotype : serotype
+            , segment : segment
+            , genotype : genotype
+            , sequence : sequence'
+            , checked : false
+            , month : month
+            , year : year
+            , day : day
+            , hostString : hostString
+           }
+      where
+        at xs col = fromMaybe ("Bad column "  ++ col ) $ do
+          i <- A.elemIndex col header
+          xs A.!! i 
     order row = A.sortBy headerOrder row
     headerOrder x y  = compare (fromMaybe 9999 (A.elemIndex  x header)) (fromMaybe 9999 (A.elemIndex y header))
     
@@ -148,7 +185,7 @@ view state = table []
                    [input [type_ "checkbox", checked state.checked, value "selected" , onClick $ const ToggleCheck] [] ]
               , td [className "name"]    [ text $ "Name:  " <> state.name ]
               , td [className "acc"]     [ text $ "Accession:  " <> state.acc ]
-              , td [className "year"]    [ text $ "Year:  " <> show state.year ]
+              , td [className "date"]    [ text $ "Date:  " <> dateString state] 
               , td [className "country"] [ text $ "Country:  " <> state.country ] ]
           , tr []   [ td []  [ text $ "Host:  " <> show state.host ] 
                  ,  td  [] [ text $ "Serotype:  " <> show state.serotype ] 
@@ -158,7 +195,7 @@ view state = table []
 update :: Action -> State -> State
 update ToggleCheck state = state { checked = not state.checked }
 update _ state = state 
-
+dateString state = intercalate "/" [(fromMaybe "?" $ show <$> state.month), (fromMaybe "?" $ show <$> state.day), (show state.year)]
 init :: State -> State
 init = id
 
