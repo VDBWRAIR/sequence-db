@@ -9,6 +9,8 @@ import Data.List.Lazy as List
 import Data.Maybe.Unsafe (fromJust)
 import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
 import Control.Monad.Eff.Class (liftEff)
+import Data.Either.Unsafe (fromRight)
+
 --import Data.Unfoldable (replicateA)
 import Control.Monad.Eff.Random as Rand
 import App.Routes (Route)
@@ -88,7 +90,7 @@ init = { name: Nothing, country: Nothing
        , format : Fasta, genotype : Nothing
        , minDate : Nothing, maxDate : Nothing
        , errors : M.empty
-       , db : seqs
+       , db : fromRightOrError $ Seq.readCSV "," csv
        , hostString : Nothing }
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
        
@@ -211,11 +213,11 @@ toCSV :: Array Seq.State -> String
 toCSV xs = header <> "\n" <> (intercalate "\n" $ map toRow xs)
   where
     header = "name,acc,year,segment"
-    toRow x = intercalate "," [x.name, x.acc, (show x.year), (show x.segment)]
+    toRow x = intercalate "," [x.name, x.acc, (show x.year), (fromMaybe "" $ show <$> x.segment)]
     
 
 query :: State -> Array Seq.State
-query q = filter match seqs
+query q = filter match q.db
   where
     match x = (q.acc ==? x.acc) && 
       (q.name ==? x.name) &&
@@ -281,3 +283,10 @@ example3 =  {
        }
             
   -- [ option [label x, value x] []]
+fromRightOrError (Right s) = s
+fromRightOrError (Left s) = unsafeThrow s
+-- TODO: non-normal Host is not okay apparently
+csv = "genotype,segment,name,acc,year,month,day,country,host,serotype,sequence\n" ++ 
+",,11/1666,KR922405,2011,,,Thailand,Human,DENV4,ATGAACCAACGAAAGAAGGTGG\n" ++ 
+",,Br246RR/10,JN983813,2010,9,8,Brazil,Human,DENV4,ATGAACCAACGAAAAAAGGT\n" ++ 
+",,D4/Pakistan/150/2009,KF041260,2009,,,Pakistan,Human,DENV4,ATGAACCAACG"

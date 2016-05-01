@@ -122,7 +122,7 @@ readCSV sep s = do
     
 type Error = String        
 process :: Array String -> Array (Array String) -> Either Error (Array State)
-process header rows = sequence $ map process' rows
+process header rows = sequence $ map process' $ A.filter (not <<< A.null) rows
   where
     --process' row | (A.length row) < (A.length columns) = Left ("Row not have expected length " ++ (show $ A.length columns) ++ " found length " ++ (show $ A.length row) )
     process' :: Array String -> Either Error State
@@ -130,9 +130,9 @@ process header rows = sequence $ map process' rows
      name <- Right $ row `at` "name"
      acc  <- Right $ row `at` "acc"
      country <- Right $ row `at` "country"
-     year <- toEither "bad year" $ Int.fromString (row `at` "year")
-     host <- toEither "Bad host" $ readHost (row `at` "host")
-     serotype <-  toEither "Bad serotype" $ readSerotype (row `at` "serotype")
+     year <- toField Int.fromString  "year" row
+     host <- toField readHost "host" row
+     serotype <-  toField readSerotype  "serotype" row
      let hostString = (row `at` "host")
      let segment = readSegment $ (row `at` "segement")
      let genotype = readGenotype $ (row `at` "genotype")
@@ -156,9 +156,14 @@ process header rows = sequence $ map process' rows
             , hostString : hostString
            }
       where
-        at xs col = fromMaybe ("Bad column "  ++ col ) $ do
+        at xs col = fromMaybe ("Bad column "  <> col <> " in header " <> (intercalate "," header ) <> "\n" <> "row: " <> (intercalate ","xs))  $ do
           i <- A.elemIndex col header
-          xs A.!! i 
+          xs A.!! i
+        toField :: forall a. (String -> Maybe a) -> String -> Array String -> Either Error a
+        toField f col row = toEither msg $ f x
+          where
+            msg = x ++ " is not a valid " ++ col
+            x = row `at` col
     order row = A.sortBy headerOrder row
     headerOrder x y  = compare (fromMaybe 9999 (A.elemIndex  x header)) (fromMaybe 9999 (A.elemIndex y header))
     
