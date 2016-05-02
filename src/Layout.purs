@@ -10,11 +10,16 @@ import Pux (EffModel, noEffects,  mapEffects, mapState)
 import Unsafe.Coerce
 import Data.Either
 import Data.Maybe
+import FileReader (readFileBlocking)
+import App.Seq as Seq
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Aff.Class (liftAff)
 
 
 data Action
   = Child (Form.Action)
   | PageView Route
+  | LoadFile (Either String (Array Seq.State))
   | DoChildAction Form.Action  
 
 type State =
@@ -28,7 +33,12 @@ init =
 
 
 update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects )
-update (PageView route) state = noEffects $ state { route = route } 
+--update (PageView route) state = noEffects $ state { route = route } 
+update (PageView route) state = { state : state
+                                , effects : [do
+                                               s <- liftEff $ readFileBlocking "foo.csv"
+                                               return $ LoadFile $ Seq.readCSV "," s]}
+update (LoadFile (Right recs))  state = noEffects $ state { form = state.form  { db = recs }}
 update (DoChildAction (Form.RandomState state')) state = noEffects state { form = state' }
 -- simply pass along the child From's actions 
 update (Child action) state = mapEffects DoChildAction

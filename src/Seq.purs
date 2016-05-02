@@ -23,8 +23,7 @@ import Data.String as S
 import Data.Maybe
 import Data.Int as Int 
 --import Data.Eulalie.Parser as P
---import Data.Eulalie.String as S
-
+--import Data.Eulalie.String as S 
 
 data Format = Fasta | CSV
 readFormat = makeRead [Fasta, CSV]
@@ -43,6 +42,8 @@ instance eqFormat :: Eq Format where
     
 readHost :: String -> Maybe Host
 readHost = makeRead [Human, Mosquito]
+
+
 
 data Host = Human | Mosquito
 derive instance genericHost :: Generic Host

@@ -1,6 +1,7 @@
 module App.Form where 
 import Control.Monad.Eff (Eff())
 import DOM (DOM)
+import FileReader (FS)
 import  Control.Monad.Eff.Exception (EXCEPTION)
 import Global (encodeURIComponent) --, readInt)
 import Data.Int as Int
@@ -95,7 +96,7 @@ init = { name: Nothing, country: Nothing
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
        
 
-type AppEffects = (random :: Rand.RANDOM, dom :: DOM )
+type AppEffects = (fs :: FS, random :: Rand.RANDOM, dom :: DOM )
 
 strToMaybe xs = if (S.null $ S.trim xs) then Nothing else Just xs
 
