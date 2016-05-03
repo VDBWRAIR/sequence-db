@@ -5,6 +5,7 @@ var HtmlWebpackPlugin = require('html-webpack-plugin');
 var CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
+    target : "node", 
   entry: [ path.join(__dirname, 'support/index.js') ],
   debug: false,
   output: {

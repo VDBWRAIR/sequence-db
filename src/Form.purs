@@ -1,7 +1,6 @@
 module App.Form where 
 import Control.Monad.Eff (Eff())
 import DOM (DOM)
-import FileReader (FS)
 import  Control.Monad.Eff.Exception (EXCEPTION)
 import Global (encodeURIComponent) --, readInt)
 import Data.Int as Int
@@ -11,6 +10,7 @@ import Data.Maybe.Unsafe (fromJust)
 import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
 import Control.Monad.Eff.Class (liftEff)
 import Data.Either.Unsafe (fromRight)
+import Control.Monad.Eff.Exception (EXCEPTION)
 
 --import Data.Unfoldable (replicateA)
 import Control.Monad.Eff.Random as Rand
@@ -33,6 +33,8 @@ import Data.String as S
 import Data.Foldable (intercalate, foldr)
 import Data.Either (Either(Left,Right))
 import Data.Date as Date  -- https://github.com/purescript/purescript-datetime
+--import FileReader (FS)
+import Node.FS (FS)
 
 
 type Year = Int
