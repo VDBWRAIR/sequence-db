@@ -1,6 +1,6 @@
 * name
 * accession 
-* country
+* location (country, and optionally more)
 * host
 * serotype 
 * sequence 
@@ -11,4 +11,3 @@
 * disease (optional)
 * segment  (optional)
 * genotype  (optional)
-* location (optional, city/state)
