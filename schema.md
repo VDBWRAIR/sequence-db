@@ -4,10 +4,11 @@
 * host
 * serotype 
 * sequence 
-* host
 * year 
+* type (optional)
+* subtype (optional)
 * month (optional, number)
 * day  (optional)
-* disease (optional)
+* Infection# (optional)
 * segment  (optional)
 * genotype  (optional)
