@@ -1,31 +1,31 @@
 module App.Layout where
 
-import App.Form as Form
-import App.Routes (Route(Home, NotFound))
-import Prelude --(($), map, (<>), show, const, pure)
-import Pux.Html (Html, div, h1, p, text, form, button, input, span)
-import Pux.Html.Attributes (type_, value, name)
-import Pux.Html.Events (FormEvent, onChange, onSubmit)
-import Data.Foreign (readInt)
-import Pux (EffModel, noEffects,  mapEffects, mapState)
+import Prelude
 import Unsafe.Coerce
 import Data.Either
 import Data.Maybe
---import FileReader (readFileBlocking)
-import Node.FS.Sync as Node 
-import Node.Encoding as Encoding
+import App.Form as Form
 import App.Seq as Seq
-import Control.Monad.Eff.Class (liftEff)
+import Node.Encoding as Encoding
+import Node.FS.Sync as Node
+import App.Routes (Route(Home, NotFound))
 import Control.Monad.Aff.Class (liftAff)
-import Control.Monad.Eff (Eff())
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (catchException)
+import Data.Foreign (readInt)
 import Node.FS (FS)
+import Pux (EffModel, noEffects, mapEffects, mapState)
+import Pux.Html (Html, div, h1, p, text, form, button, input, span)
+import Pux.Html.Attributes (type_, value, name)
+import Pux.Html.Events (FormEvent, onChange, onSubmit)
 
 data Action
   = Child (Form.Action)
   | PageView Route
   | LoadFile (Either String (Array Seq.State))
   | DoChildAction Form.Action 
+
 
 type State =
   { route :: Route
@@ -35,7 +35,7 @@ init :: State
 init =
   { route: NotFound
   , form: Form.init }
-  
+
 safeReadAscii fp = catchException (const (liftEff $ pure "This is an error!" :: Eff (fs :: FS) String))  $ Node.readTextFile Encoding.ASCII "foo.csv"
 update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects )
 --update (PageView route) state = noEffects $ state { route = route } 

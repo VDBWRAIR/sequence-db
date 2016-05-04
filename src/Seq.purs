@@ -1,27 +1,27 @@
 module App.Seq where
+import Data.Either
+import Test.QuickCheck.Gen as Gen
+import Prelude
+import Data.Generic
+import Data.Maybe
+import Data.Array as A
+import Data.Date as Date
+import Data.Int as Int
 import Data.StrMap as StrMap
+import Data.String as S
+import App.Routes (Route(Home, NotFound))
 import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
-import Data.Array.Unsafe (last)
 import Data.Array (zip)
+import Data.Array.Unsafe (last)
+import Data.Array.Unsafe (unsafeIndex)
+import Data.Foldable (Foldable, intercalate)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.String (split)
 import Data.Traversable (sequence)
-import Data.Date as Date
-import Data.Either
-import App.Routes (Route(Home, NotFound))
 import Pux.Html (Html, div, p, text, table, tr, td, input)
 import Pux.Html.Attributes (className, checked, value, type_)
-import Prelude --(id, const, ($), show, (<>), (<$>), Eq, (==), (&&), not, (<<<), map, Show)
 import Pux.Html.Events (onClick)
-import Data.Foldable (Foldable, intercalate)
-import Data.Generic
-import Data.Maybe (Maybe, fromMaybe) 
---import Text.Parsing.CSV (defaultParsers, makeParsers)
---import Text.Parsing.Parser (runParser)
-import Data.Array.Unsafe (unsafeIndex)
-import Data.Array as A
-import Data.String as S
-import Data.Maybe
-import Data.Int as Int 
+import Test.QuickCheck.Arbitrary (class Arbitrary)
 --import Data.Eulalie.Parser as P
 --import Data.Eulalie.String as S 
 
@@ -56,8 +56,8 @@ instance eqHost :: Eq Host where
 undot :: String -> String    
 undot s = last $ S.split "." s
 
-readSerotype = makeRead serotypes
-serotypes = [DENV1 , DENV2 , DENV3 , DENV4 , HN1 , H1N1 , H5N1 , H3N2 , H7N9]
+readSerotype = makeRead serotypes 
+
 makeRead :: forall a. (Show a) => Array a -> (String -> Maybe a)
 makeRead xs = f 
   where
@@ -66,12 +66,18 @@ makeRead xs = f
         msg = "Could not coerce " <> x <> " to one of " <> (show m)
     m = StrMap.fromFoldable $ zip (map show xs) xs
     
-data Serotype = DENV1 | DENV2 | DENV3 | DENV4 | HN1 | H1N1 | H5N1 | H3N2 | H7N9
 derive instance genericSerotype :: Generic Serotype 
 instance showSerotype :: Show Serotype where
     show = undot <<< gShow 
 instance eqSerotype :: Eq Serotype where
     eq = gEq
+    
+data Serotype = DENV1 | DENV2 | DENV3 | DENV4 | HN1 | H1N1 | H5N1 | H3N2 | H7N9
+serotypes = [DENV1 , DENV2 , DENV3 , DENV4 , HN1 , H1N1 , H5N1 , H3N2 , H7N9]
+
+    
+instance arbitrarySerotype :: Arbitrary Serotype where
+  arbitrary = Gen.elements DENV1 serotypes
     
 segments = [PB1 , PB2 , PA , HA , NP , NA , M1 , NS1]
 readSegment = makeRead [PB1 , PB2 , PA , HA , NP , NA , M1 , NS1]
