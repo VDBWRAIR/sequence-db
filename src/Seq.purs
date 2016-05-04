@@ -99,7 +99,7 @@ type State = {
      , year :: Int
      , day :: Maybe Int
      }
-             
+data Separator = Comma | Tab
 --columns = map fst [("name", id') ,  ("acc", id') ,  ("country", id') ,  ("year", Int.fromString) ,  ("host", readHost) ,  ("seortype", readSegment) ,  ("segment", maybe' readSegment) ,  ("genotype", maybe' readGenotype)]
 
 -- TODO: include Dates
@@ -111,14 +111,17 @@ columns = ["name", "acc", "country",  "year", "host", "serotype", "segment", "ge
 --    applyRow row = zipWith ($) funcs row
 --    funcs = map snd $ A.sortBy headerOrder columns
 --readCSV :: String -> String -> Maybe (Array State)
-readCSV :: String -> String -> Either Error (Array State)
+readCSV :: Separator -> String -> Either Error (Array State)
 --readCSV sep s = process <$> (toEither "no head" $ A.head lines') <*> (toEither "no tail" $ A.tail lines')
 readCSV sep s = do
                   head <- (toEither "no head" $ A.head lines')
                   rows <- (toEither "no tail" $ A.tail lines')
                   process head rows
   where
-    lines' = map (S.split sep) $ lines s
+    sep' = case sep of
+      Comma -> ","
+      Tab -> "\t"
+    lines' = map (S.split sep') $ lines s
     lines  = S.split "\n"
     
 type Error = String        

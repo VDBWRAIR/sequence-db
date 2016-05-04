@@ -16,7 +16,6 @@
     "serve:watch": "node ./webpack.config.js",
     "serve:prod": "http-server dist --cors -p 3000",
     "start": "npm run serve:watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",

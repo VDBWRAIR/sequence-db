@@ -93,7 +93,7 @@ init = { name: Nothing, country: Nothing
        , format : Fasta, genotype : Nothing
        , minDate : Nothing, maxDate : Nothing
        , errors : M.empty
-       , db : fromRightOrError $ Seq.readCSV "," csv
+       , db : fromRightOrError $ Seq.readCSV Seq.Comma csv
        , hostString : Nothing }
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
        
