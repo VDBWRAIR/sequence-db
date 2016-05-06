@@ -18,7 +18,7 @@
       "purescript-node-buffer" : "^0.2.2",
       "purescript-test-unit" : "^6.0.0",
       "purescript-quickcheck" : "^0.12.2",
-      "purescript-csv-generic" : "git://github.com/averagehat/purescript-csv-generic.git"
+      "purescript-csv-generic" : "git://github.com/averagehat/purescript-csv-generic.git",
       "purescript-eulalie" : "git://github.com/bodil/purescript-eulalie.git"
   }
 }

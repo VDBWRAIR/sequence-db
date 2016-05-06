@@ -22,6 +22,7 @@ import Pux.Html (Html, div, p, text, table, tr, td, input)
 import Pux.Html.Attributes (className, checked, value, type_)
 import Pux.Html.Events (onClick)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Data.CSVGeneric 
 --import Data.Eulalie.Parser as P
 --import Data.Eulalie.String as S 
 
@@ -86,6 +87,27 @@ derive instance genericSegment :: Generic Segment
 instance showSegment :: Show Segment where
   show = undot <<< gShow
 instance eqSegment :: Eq Segment where
+  eq = gEq
+
+newtype Entry = Entry {
+       name     :: String
+     , acc      :: String
+     , country  :: String 
+     , host     :: Host
+     , serotype :: Serotype
+     , segment  :: Maybe Segment
+     , genotype :: Maybe Genotype
+     , sequence :: String
+     , hostString :: String
+     , month :: Maybe Int
+     , year :: Int
+     , day :: Maybe Int
+     --, date     :: Date.Date
+}
+derive instance genericEntry :: Generic Entry
+instance showEntry :: Show Entry where
+  show = undot <<< gShow
+instance eqEntry :: Eq Entry where
   eq = gEq
 
 type Year = Int 

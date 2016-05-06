@@ -1,6 +1,7 @@
 module Test.Main where
 import Prelude
 import Data.Either
+import Data.Eulalie.Result (ParseResult(Success, Error))
 import Data.Maybe
 import Data.Generic
 import CSV
@@ -19,10 +20,10 @@ import Test.Unit.Assert (assert, equal)
 import Test.Unit.Main (runTest)
 import Test.Unit.QuickCheck (quickCheck)
 import Type.Proxy (Proxy(..))
+import Data.CSVGeneric 
+import Data.String as S
+import App.Seq
 
-
-newtype SingleEnum = SingleEnum { foo :: Foo } 
-derive instance genericSingleEnum :: Generic SingleEnum
 --instance encodeSingleEnum :: Encode SingleEnum
 --  encode = gEncode
 --instance decodeSingleEnum :: Decode SingleEnum
@@ -42,24 +43,37 @@ derive instance genericSingleEnum :: Generic SingleEnum
 theCommutativeProperty :: Int -> Int -> Result
 theCommutativeProperty a b = (a + b) === (b + a)
 
-toFromParseSerotype :: Serotype -> Result
-toFromParseSerotype a = Just a === run serotype $ show a
+--toFromParseSerotype :: Serotype -> Result
+--toFromParseSerotype a = Just a === run serotype $ show a
 
 main = runTest do
 --  test "enum shows encode" do
 --    encode $ SingleEnum { foo : Foo } `equal` "foo\n" <> "Foo"
   test "the commutative property" do
     quickCheck theCommutativeProperty
-  test "read" do
-    (Just Foo)  `equal` (Just Foo)
-    (Right Foo) `equal` (parseFoo "Foo")
-    (Right Bar) `equal` (parseFoo "Bar")
-    assert "oughta be left" $ isLeft $ parseFoo "Baz"
-    (Just PB1) `equal` run segment "PB1"
-    (Just M1) `equal` run segment "M1"
-    quickCheck toFromParseSerotype
+  test "read" do 
+    let header = S.split " " "name acc country host serotype segment genotype sequence hostString month year day"
+    let p = (fullParse header) (Proxy :: Proxy Entry)
+    let s = "name,acc,country,Human,DENV1,,,AAA,hostString,,3,,"
+    --(A.length $ S.split "," s) `equal` A.length header
+    --(S.split "," s) `equal` []
+    let res = showResult <$> P.parse p $ stream s
     
-run p s = toMaybe $ P.parse p (stream s)
+    res `equal` "foo"
+
+showResult (Success r) = show r.value
+showResult (Error e) = "Expected one of:" <> show e.expected <> "at " <> show e.input    
+    
+
+--    (Just Foo)  `equal` (Just Foo)
+--    (Right Foo) `equal` (parseFoo "Foo")
+--    (Right Bar) `equal` (parseFoo "Bar")
+--    assert "oughta be left" $ isLeft $ parseFoo "Baz"
+--    (Just PB1) `equal` run segment "PB1"
+--    (Just M1) `equal` run segment "M1"
+--    quickCheck toFromParseSerotype
+    
+    
 
     
 --    (Foo) `equal` (readFoo "Foo")
