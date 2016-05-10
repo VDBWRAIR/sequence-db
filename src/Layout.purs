@@ -36,7 +36,7 @@ init =
   { route: NotFound
   , form: Form.init }
 
-safeReadAscii fp = catchException (const (liftEff $ pure "This is an error!" :: Eff (fs :: FS) String))  $ Node.readTextFile Encoding.ASCII "foo.csv"
+safeReadAscii fp = catchException (const (liftEff $ pure "This is an error!" :: Eff (fs :: FS) String))  $ Node.readTextFile Encoding.ASCII fp
 update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects )
 --update (PageView route) state = noEffects $ state { route = route } 
 update (PageView route) state = { state : state
