@@ -89,11 +89,40 @@ instance showSegment :: Show Segment where
 instance eqSegment :: Eq Segment where
   eq = gEq
 
+newtype Row = Row {
+                  name :: String
+                , year :: Int
+                , date :: Maybe String
+                , continent :: Maybe String
+                , subtype :: Maybe String
+                , databaseName :: Maybe String 
+                , accHA     :: String
+                , segmentHA     :: String
+                , accMP     :: String
+                , segementMP     :: String
+                , accNA     :: String
+                , segmentNA     :: String
+                , accNP     :: String
+                , segmentNP     :: String
+                , accNS     :: String
+                , segmentNS     :: String
+                , accPA     :: String
+                , segmentPA     :: String
+                , accPB1     :: String
+                , segmentPB1     :: String
+                , accPB2     :: String
+                , segmentPB2     :: String
+                }
+derive instance genericRow :: Generic Row
+instance showRow :: Show Row where
+  show = undot <<< gShow
+instance eqRow :: Eq Row where
+  eq = gEq
+  
 newtype Entry = Entry {
        name     :: String
      , acc      :: String
      , country  :: String 
-     , host     :: Host
      , serotype :: Serotype
      , segment  :: Maybe Segment
      , genotype :: Maybe Genotype
