@@ -1,16 +1,20 @@
 module Test.Main where
 import Prelude
 import Data.Either
-import Data.Eulalie.Result (ParseResult(Success, Error))
 import Data.Maybe
 import Data.Generic
 import CSV
+import Data.CSVGeneric
+import App.Seq
 import App.Seq as Seq
 import Data.Array as A
 import Data.Eulalie.Parser as P
+import Data.String as S
 import Test.QuickCheck.Gen as Gen
 import Test.Unit.Assert as Assert
 import App.Seq (serotypes, Serotype, Segment(PB1, M1))
+import Data.Either.Unsafe (fromRight)
+import Data.Eulalie.Result (ParseResult(Success, Error))
 import Data.Eulalie.Result (ParseResult(Success))
 import Data.Eulalie.Stream (stream)
 import Test.QuickCheck (Result, (===))
@@ -20,60 +24,32 @@ import Test.Unit.Assert (assert, equal)
 import Test.Unit.Main (runTest)
 import Test.Unit.QuickCheck (quickCheck)
 import Type.Proxy (Proxy(..))
-import Data.CSVGeneric 
-import Data.String as S
-import App.Seq
-
---instance encodeSingleEnum :: Encode SingleEnum
---  encode = gEncode
---instance decodeSingleEnum :: Decode SingleEnum
---  decode = gDecode --
---newtype Primitives { int :: Int
---                   , str :: String }
---                   
---derive instance genericPrimitives :: Generic Primitives
---instance encodePrimitives :: Encode Primitives
---  encode = gEncode 
---instance decodePrimitives :: Decode Primitives
---  decode = gDecode
---
---decodeEncodeEquals :: (Encode a, Decode a) => a -> Result
---decodeEncodeEquals x = decode $ encode x == x
 
 theCommutativeProperty :: Int -> Int -> Result
 theCommutativeProperty a b = (a + b) === (b + a)
 
---toFromParseSerotype :: Serotype -> Result
---toFromParseSerotype a = Just a === run serotype $ show a
-
 main = runTest do
---  test "enum shows encode" do
---    encode $ SingleEnum { foo : Foo } `equal` "foo\n" <> "Foo"
   test "the commutative property" do
     quickCheck theCommutativeProperty
-  test "read" do 
-    let header = S.split " " "name acc country host serotype segment genotype sequence hostString month year day"
+  test "read" do
+    -- no proper error if the headers don't match the type
+    let header = S.split " " "name acc country serotype segment genotype sequence hostString month year day"
     let p = (fullParse header) (Proxy :: Proxy Entry)
-    let s = "name,acc,country,Human,DENV1,,,AAA,hostString,,3,,"
     --(A.length $ S.split "," s) `equal` A.length header
     --(S.split "," s) `equal` []
-    let res = showResult <$> P.parse p $ stream s
+    let res = P.parse p $ stream s
+    -- this test gets truncated
+    let expected = Entry {name : "harold", acc: "anacc", country: "USA", serotype: DENV1, segment: Just PB1
+                                  , genotype: Just Genotype1, sequence: "AAA", hostString: "hostString"
+                                  , month: Just 2, year: 3, day: Just 12}
+    header `equal` fs
     
-    res `equal` "foo"
-
+    (fromRight $ getSuccess res) `equal` expected
+getSuccess (Success x) = x.value
+fs = [ "name" , "acc" , "country" , "serotype" , "segment" , "genotype" , "sequence" , "hostString" , "month" , "year" , "day"] 
+s = "harold,anacc,USA," <> show DENV1 <> "," <> show PB1 <> "," <> show Genotype1 <> ",AAA,hostString,2,3,12"
 showResult (Success r) = show r.value
-showResult (Error e) = "Expected one of:" <> show e.expected <> "at " <> show e.input    
-    
-
---    (Just Foo)  `equal` (Just Foo)
---    (Right Foo) `equal` (parseFoo "Foo")
---    (Right Bar) `equal` (parseFoo "Bar")
---    assert "oughta be left" $ isLeft $ parseFoo "Baz"
---    (Just PB1) `equal` run segment "PB1"
---    (Just M1) `equal` run segment "M1"
---    quickCheck toFromParseSerotype
-    
-    
+showResult (Error e) = "Expected one of:" <> show e.expected <> " at " <> show e.input    
 
     
 --    (Foo) `equal` (readFoo "Foo")
