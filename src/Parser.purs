@@ -8,14 +8,15 @@ import Control.Bind (join)
 import Data.Date (fromString, DayOfMonth(DayOfMonth))
 import Data.Date.UTC (month, dayOfMonth)
 import Data.Enum (fromEnum)
-import Data.Foldable (find)
+import Data.Foldable (find, foldr)
 import Data.Generic (gEq, gShow, class Generic)
 import Data.List ((:), List(Nil, Cons), null, takeWhile)
-import Data.List.WordsLines (lines)
+--import Data.List.WordsLines (lines)
 import Data.Maybe (fromMaybe, Maybe(Just))
 import Data.Tuple (Tuple(Tuple))
 import Data.Unfoldable (unfoldr)
 import Prelude (Unit, pure, (==), map, not, (<<<), class Eq, class Show, (<$>), ($), bind)
+lines = foldr (:) Nil <<< S.split "\n"
 newtype Row = Row {
                   name :: String
                 , year :: Int
