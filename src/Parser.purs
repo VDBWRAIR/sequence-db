@@ -1,21 +1,34 @@
 module Parser where
+import Data.Either
 import Data.Array as A
+import Data.Eulalie.Parser as P
 import Data.List as L
 import Data.String as S
 import App.Layout (safeReadAscii)
 import App.Seq (Genotype, Segment, Serotype)
 import Control.Bind (join)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Data.CSVGeneric (fullParse)
 import Data.Date (fromString, DayOfMonth(DayOfMonth))
 import Data.Date.UTC (month, dayOfMonth)
 import Data.Enum (fromEnum)
+import Data.Eulalie.Result (ParseResult(Success, Error))
+import Data.Eulalie.Stream (stream)
 import Data.Foldable (find, foldr)
 import Data.Generic (gEq, gShow, class Generic)
-import Data.List ((:), List(Nil, Cons), null, takeWhile)
---import Data.List.WordsLines (lines)
-import Data.Maybe (fromMaybe, Maybe(Just))
+import Data.List ((:), List(Nil, Cons))
+import Data.Maybe (maybe, fromMaybe, Maybe(Just))
+import Data.Traversable (sequence)
 import Data.Tuple (Tuple(Tuple))
 import Data.Unfoldable (unfoldr)
-import Prelude (Unit, pure, (==), map, not, (<<<), class Eq, class Show, (<$>), ($), bind)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS (FS)
+import Node.FS.Sync (readTextFile)
+import Prelude (pure, (==), map, not, (<<<), class Eq, class Show, (<$>), ($), bind, show, (<>))
+import Type.Proxy (Proxy(Proxy))
+lines :: String -> List String
 lines = foldr (:) Nil <<< S.split "\n"
 newtype Row = Row {
                   name :: String
@@ -84,14 +97,34 @@ instance eqRow :: Eq Row where
 undot :: String -> String    
 undot s = fromMaybe "" $ A.last $ S.split "." s 
 
-pairs = chunksOf 2
 
+readFasta :: forall t. String -> Eff ( fs :: FS | t) (List (Seq ()))
 readFasta fp = ((map f) <<< pairs <<< lines) <$> safeReadAscii fp
-  where f (Cons a (Cons b Nil)) = {id: a, sequence: b}
-
---type Seq = forall r. Object (id :: String , sequence :: String | r) 
+  where
+    f (Cons a (Cons b Nil)) = {id: a, sequence: b}
+    pairs = chunksOf 2
+    
 type Seq r = {id :: String , sequence :: String | r}
-type Empty = {foo :: String}
+
+ 
+readCSV' :: forall eff. String -> Eff ( fs :: FS , err :: EXCEPTION | eff) (Either String (Array Row))
+readCSV' fp = read <$> toArray <$> rows fp
+  where
+    toEither :: forall a b. b -> Maybe a -> Either b a
+    toEither msg x = maybe (Left msg) Right x
+    toArray = foldr A.cons []
+    rows :: forall eff'. String -> Eff (fs :: FS, err :: EXCEPTION | eff') (L.List String)
+    rows fp = lines <$> readTextFile UTF8 fp
+    read lines' = do
+      header <- toEither "Missing header" $ A.head $ lines'
+      let rows' = fromMaybe [] $ A.tail $ lines'
+      let p = fullParse (S.split "," header) (Proxy :: Proxy Row)
+      sequence $ map (join <<< prToEither <<< (P.parse p) <<< stream) rows'
+      where
+        prToEither  (Success ({value : value})) = Right value
+        prToEither  (Error e)                   = Left $ "Expected one of:" <> show e.expected <> "at " <> show e.input
+
+
 makeEntry :: forall r. Segment -> String -> List (Seq r)  -> Row -> Maybe Entry
 makeEntry seg acc fasta (Row row) = do
   --entry <- find (( == row.name) <<< _.id) fasta
@@ -107,6 +140,9 @@ makeEntry seg acc fasta (Row row) = do
             , serotype: row.serotype, type_: row.type_, subtype: row.subtype
             , disease: row.disease}
 
+main = do
+  csv <- readCSV' "foo.csv"
+  log $ show csv
 --do
 --  fasta <- readFasta 
 --  segments 

@@ -1,26 +1,33 @@
 module Main where
 
-import App.Routes (match)
+import Data.Maybe
+import App.Form as Form
+import App.Form (AppEffects)
 import App.Layout (Action(PageView), State, view, update)
+import App.Routes (match)
 import Control.Bind ((=<<))
 import Control.Monad.Eff (Eff)
-import Prelude (bind, return, ($), (>>=))
-import Data.Maybe 
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (log)
+import Parser (readCSV')
+import Prelude (bind, return, ($), (>>=), show)
 import Pux (App, Config, CoreEffects, fromSimple, renderToDOM)
 import Pux.Router (sampleUrl)
 import Signal ((~>))
-import App.Form (AppEffects)
-import App.Form as Form
-import Control.Monad.Eff.Class (liftEff)
-  -- AppEffects must be defined as a closed record with DOM and RANDOM
+
 
 -- | Entry point for the browser.--
-main :: State -> Eff (CoreEffects AppEffects) (App State Action)
-main state = do
-  app <- Pux.start =<< config state
-  renderToDOM "#app" app.html
-  -- | Used by hot-reloading code in support/index.js
-  return app
+
+main = do
+  csv <- readCSV' "foo.csv"
+  log $ show csv
+
+--main :: State -> Eff (CoreEffects AppEffects) (App State Action)
+--main state = do
+--  app <- Pux.start =<< config state
+--  renderToDOM "#app" app.html
+--  -- | Used by hot-reloading code in support/index.js
+--  return app
 
 config :: forall e. State ->
           Eff (CoreEffects (AppEffects ))
