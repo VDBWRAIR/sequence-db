@@ -1,6 +1,6 @@
 module FileReader where
 foreign import data FS :: !
-
+foreign import data XMLHTTP :: !
 type ErrorCode = String
 type FilePath = String 
 --newtype ContT r m a = ContT ((a -> m r) -> m r)
@@ -14,7 +14,8 @@ import DOM -- needed for type signatures
 import Control.Monad.Cont.Trans
 import Data.Function 
 import Prelude
-import DOM.File.Types (File())
+--import DOM.File.Types (File())
+type File = String
 foreign import readFileImpl ::
                  forall eff. Fn3 File
                    (String -> Eff (fs :: FS | eff) Unit)
@@ -49,4 +50,4 @@ readFile path k =
          (k <<< Left)
 
 foreign import readFileBlocking ::
-  forall e. String -> Eff (fs :: FS | e ) String
+  forall e. String -> Eff (fs :: XMLHTTP | e) String

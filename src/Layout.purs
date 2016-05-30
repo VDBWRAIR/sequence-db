@@ -6,19 +6,21 @@ import Data.Either
 import Data.Maybe
 import App.Form as Form
 import App.Seq as Seq
-import Node.Encoding as Encoding
-import Node.FS.Sync as Node
+--import Node.Encoding as Encoding
+--import Node.FS.Sync as Node
 import App.Routes (Route(Home, NotFound))
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (catchException)
 import Data.Foreign (readInt)
-import Node.FS (FS)
+--import Node.FS (FS)
+import FileReader (XMLHTTP)
 import Pux (EffModel, noEffects, mapEffects, mapState)
 import Pux.Html (Html, div, h1, p, text, form, button, input, span)
 import Pux.Html.Attributes (type_, value, name)
 import Pux.Html.Events (FormEvent, onChange, onSubmit)
+import FileReader (readFile', readFileBlocking)
 
 data Action
   = Child (Form.Action)
@@ -36,13 +38,15 @@ init =
   { route: NotFound
   , form: Form.init }
 
-safeReadAscii fp = catchException (const (liftEff $ pure "This is an error!" :: Eff (fs :: FS) String))  $ Node.readTextFile Encoding.ASCII fp
+--safeReadAscii fp = catchException (const (liftEff $ pure "This is an error!" :: Eff (fs :: FS) String))  $ Node.readTextFile Encoding.ASCII fp
 update :: forall e. Action -> State -> EffModel State Action (Form.AppEffects )
 --update (PageView route) state = noEffects $ state { route = route } 
+-- return $ LoadFile $ Seq.readCSV "," s]}
 update (PageView route) state = { state : state
                                 , effects : [do
-                                               s <- liftEff $ safeReadAscii "./foo.csv"
-                                               --return $ LoadFile $ Seq.readCSV "," s]}
+                                               let fn = "https://gist.githubusercontent.com/averagehat/27baa334b0a3b2e90f691db6bbbdcab0/raw/064328b87eb1b6f1fa6d3fc9450a25514bf107c4/foo.csv"
+                                               --s <- liftEff $ safeReadAscii "./foo.csv"
+                                               s <- liftEff $ readFileBlocking fn
                                                return $ LoadFile $ Right Form.seqs]}
 update (LoadFile (Right recs))  state = noEffects $ state { form = state.form  { db = recs }}
 update (DoChildAction (Form.RandomState state')) state = noEffects state { form = state' }

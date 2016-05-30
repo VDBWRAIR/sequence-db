@@ -9,7 +9,7 @@ import Control.Bind ((=<<))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (log)
-import Parser (readCSV')
+--import Parser (readCSV')
 import Prelude (bind, return, ($), (>>=), show)
 import Pux (App, Config, CoreEffects, fromSimple, renderToDOM)
 import Pux.Router (sampleUrl)
@@ -18,16 +18,16 @@ import Signal ((~>))
 
 -- | Entry point for the browser.--
 
-main = do
-  csv <- readCSV' "foo.csv"
-  log $ show csv
+--main = do
+--  csv <- readCSV' "foo.csv"
+--  log $ show csv
 
---main :: State -> Eff (CoreEffects AppEffects) (App State Action)
---main state = do
---  app <- Pux.start =<< config state
---  renderToDOM "#app" app.html
---  -- | Used by hot-reloading code in support/index.js
---  return app
+main :: State -> Eff (CoreEffects AppEffects) (App State Action)
+main state = do
+  app <- Pux.start =<< config state
+  renderToDOM "#app" app.html
+  -- | Used by hot-reloading code in support/index.js
+  return app
 
 config :: forall e. State ->
           Eff (CoreEffects (AppEffects ))
