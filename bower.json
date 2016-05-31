@@ -21,6 +21,7 @@
       "purescript-csv-generic" : "git://github.com/averagehat/purescript-csv-generic.git",
       "purescript-eulalie" : "git://github.com/bodil/purescript-eulalie.git",
       "purescript-words-lines" : "^0.0.5",
-      "purescript-datetime" : "^0.9.1"
+      "purescript-datetime" : "^0.9.1",
+      "purescript-affjax" : "^0.13.2"
   }
 }

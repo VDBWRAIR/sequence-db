@@ -33,7 +33,8 @@ import Data.String as S
 import Data.Foldable (intercalate, foldr)
 import Data.Either (Either(Left,Right))
 import Data.Date as Date  -- https://github.com/purescript/purescript-datetime
-import FileReader (XMLHTTP)
+import Network.HTTP.Affjax (AJAX)
+--import FileReader (XMLHTTP)
 --import Node.FS (FS)
 
 
@@ -98,7 +99,7 @@ init = { name: Nothing, country: Nothing
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
        
 
-type AppEffects = (fs :: XMLHTTP, random :: Rand.RANDOM, dom :: DOM )
+type AppEffects = (ajax :: AJAX, random :: Rand.RANDOM, dom :: DOM )
 
 strToMaybe xs = if (S.null $ S.trim xs) then Nothing else Just xs
 
