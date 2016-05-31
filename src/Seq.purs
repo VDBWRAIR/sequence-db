@@ -1,20 +1,23 @@
 module App.Seq where
 import Data.Either
-import Test.QuickCheck.Gen as Gen
 import Prelude
 import Data.Generic
 import Data.Maybe
+import Data.CSVGeneric
 import Data.Array as A
 import Data.Date as Date
 import Data.Int as Int
 import Data.StrMap as StrMap
 import Data.String as S
+import Test.QuickCheck.Gen as Gen
 import App.Routes (Route(Home, NotFound))
+import Control.Bind (join)
 import Control.Monad.Eff.Exception.Unsafe (unsafeThrow)
-import Data.Array (zip)
+import Data.Array ((:), zip)
 import Data.Array.Unsafe (last)
 import Data.Array.Unsafe (unsafeIndex)
 import Data.Foldable (Foldable, intercalate)
+import Data.List (List)
 import Data.Maybe (Maybe, fromMaybe)
 import Data.String (split)
 import Data.Traversable (sequence)
@@ -22,7 +25,6 @@ import Pux.Html (Html, div, p, text, table, tr, td, input)
 import Pux.Html.Attributes (className, checked, value, type_)
 import Pux.Html.Events (onClick)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
-import Data.CSVGeneric 
 --import Data.Eulalie.Parser as P
 --import Data.Eulalie.String as S 
 
@@ -119,27 +121,13 @@ instance showRow :: Show Row where
 instance eqRow :: Eq Row where
   eq = gEq
   
-newtype Entry = Entry {
-       name     :: String
-     , acc      :: String
-     , country  :: String 
-     , serotype :: Serotype
-     , segment  :: Maybe Segment
-     , genotype :: Maybe Genotype
-     , sequence :: String
-     , hostString :: String
-     , month :: Maybe Int
-     , year :: Int
-     , day :: Maybe Int
-     --, date     :: Date.Date
-}
-derive instance genericEntry :: Generic Entry
-instance showEntry :: Show Entry where
-  show = undot <<< gShow
-instance eqEntry :: Eq Entry where
-  eq = gEq
 
-type Year = Int 
+type Year = Int
+
+
+
+
+
 type State = {
        name     :: String
      , acc      :: String
@@ -155,7 +143,15 @@ type State = {
      , month :: Maybe Int
      , year :: Int
      , day :: Maybe Int
-     }
+       }
+--     , subtype :: Maybe String
+--     , type_ :: Maybe String
+--     , infectionNum :: Maybe String
+--     , disease :: Maybe String
+--
+--     }
+-- Data.CSVGeneric not work because Date has no generic instance
+       
 data Separator = Comma | Tab
 --columns = map fst [("name", id') ,  ("acc", id') ,  ("country", id') ,  ("year", Int.fromString) ,  ("host", readHost) ,  ("seortype", readSegment) ,  ("segment", maybe' readSegment) ,  ("genotype", maybe' readGenotype)]
 
@@ -168,8 +164,9 @@ columns = ["name", "acc", "country",  "year", "host", "serotype", "segment", "ge
 --    applyRow row = zipWith ($) funcs row
 --    funcs = map snd $ A.sortBy headerOrder columns
 --readCSV :: String -> String -> Maybe (Array State)
-readCSV :: Separator -> String -> Either Error (Array State)
 --readCSV sep s = process <$> (toEither "no head" $ A.head lines') <*> (toEither "no tail" $ A.tail lines')
+--readCSV :: Separator -> String -> Either Error (Array State)
+readCSV :: Separator -> String -> Either Error (Array State)
 readCSV sep s = do
                   head <- (toEither "no head" $ A.head lines')
                   rows <- (toEither "no tail" $ A.tail lines')
@@ -179,9 +176,14 @@ readCSV sep s = do
       Comma -> ","
       Tab -> "\t"
     lines' = map (S.split sep') $ lines s
-    lines  = S.split "\n"
     
-type Error = String        
+toArray = foldr A.cons []
+
+lines :: String -> Array String
+lines = S.split "\n"
+
+type Error = String
+
 process :: Array String -> Array (Array String) -> Either Error (Array State)
 process header rows = sequence $ map process' $ A.filter (not <<< A.null) rows
   where
