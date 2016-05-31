@@ -143,13 +143,11 @@ type State = {
      , month :: Maybe Int
      , year :: Int
      , day :: Maybe Int
-       }
---     , subtype :: Maybe String
---     , type_ :: Maybe String
---     , infectionNum :: Maybe String
---     , disease :: Maybe String
---
---     }
+     , subtype :: Maybe String
+     , type_ :: Maybe String
+     , infectionNum :: Maybe String
+     , disease :: Maybe String 
+     }
 -- Data.CSVGeneric not work because Date has no generic instance
        
 data Separator = Comma | Tab
@@ -198,7 +196,11 @@ process header rows = sequence $ map process' $ A.filter (not <<< A.null) rows
      let segment = readSegment $ (row `at` "segement")
      let genotype = readGenotype $ (row `at` "genotype")
      let month = (Int.fromString (row `at` "month"))
-     let day = Int.fromString (row `at` "day") 
+     let day = Int.fromString (row `at` "day")
+     let subtype = toMaybe $ row `at` "subtype"
+     let type_ =   toMaybe $ row `at` "type"
+     let infectionNum = toMaybe $ row `at` "infectionNum"
+     let disease = toMaybe $ row `at` "disease"
      sequence' <-  Right $ row `at` "sequence"
      date <- toEither "bad date parse" $ Date.fromString ((show year) ++ "/" ++ (fromMaybe "6" $ show <$> month) ++ "/" ++ (fromMaybe "15" $ show <$> day))
      pure {   name : name
@@ -215,8 +217,14 @@ process header rows = sequence $ map process' $ A.filter (not <<< A.null) rows
             , year : year
             , day : day
             , hostString : hostString
+            , type_ : type_
+            , subtype : subtype
+            , infectionNum : infectionNum
+            , disease : disease
            }
       where
+        toMaybe "" = Nothing
+        toMaybe x  = Just x
         at xs col = fromMaybe ("Bad column "  <> col <> " in header " <> (intercalate "," header ) <> "\n" <> "row: " <> (intercalate ","xs))  $ do
           i <- A.elemIndex col header
           xs A.!! i
@@ -255,8 +263,12 @@ view state = table []
               , td [className "country"] [ text $ "Country:  " <> state.country ] ]
           , tr []   [ td []  [ text $ "Host:  " <> show state.host ] 
                  ,  td  [] [ text $ "Serotype:  " <> show state.serotype ] 
-                 ,  td  [] [ text $ "Segment:  "  <> (fromMaybe "n/a" $ show <$> state.segment)] 
-                 ,  td  [] [ text $ "Genotype:  "  <> (fromMaybe "n/a" $ show <$> state.genotype)] ]]
+                 ,  td  [] [ text $ "Segment:"  <>  (fromMaybe "n/a" $ show <$> state.segment)]
+                 ,  td  [] [ text $ "Genotype:"  <> (fromMaybe "n/a" $ show <$> state.genotype)]
+                 ,  td  [] [ text $ "Type:  "  <>   (fromMaybe "n/a" $ state.type_)]
+                 ,  td  [] [ text $ "Subtype: "  <> (fromMaybe "n/a" $ state.subtype)]
+                 ,  td  [] [ text $ "Disease: "  <> (fromMaybe "n/a" $ state.disease)]
+                 ,  td  [] [ text $ "Infection #:  "  <> (fromMaybe "n/a" $ state.infectionNum) ] ]]
 
 update :: Action -> State -> State
 update ToggleCheck state = state { checked = not state.checked }

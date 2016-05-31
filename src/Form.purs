@@ -57,6 +57,10 @@ type State = {    name      :: Maybe String
                  , sampleSize :: Maybe Int
                  , format   :: Format
                  , errors :: M.StrMap Error
+                 , subtype :: Maybe String
+                 , type_ :: Maybe String
+                 , infectionNum :: Maybe String
+                 , disease :: Maybe String 
                  , db :: Array Seq.State
                  --, db :: Array Seq.State
               }
@@ -73,6 +77,10 @@ data Action =
  | SerotypeChange FormEvent
  | SegmentChange  FormEvent
  | GenotypeChange  FormEvent
+ | TypeChange FormEvent
+ | SubTypeChange FormEvent
+ | DiseaseChange FormEvent
+ | InfectionNumChange FormEvent
  | SampleSizeChange  FormEvent
  | FormatChange SelectionEvent
  | RandomState State
@@ -95,7 +103,8 @@ init = { name: Nothing, country: Nothing
        , minDate : Nothing, maxDate : Nothing
        , errors : M.empty
        , db : fromRightOrError $ Seq.readCSV Seq.Comma csv
-       , hostString : Nothing }
+       , hostString : Nothing
+       , type_ : Nothing, subtype : Nothing, infectionNum : Nothing, disease : Nothing}
 -- In order to give Seq.State an Eq instance, it must be wrapped in NewType
        
 
@@ -175,6 +184,13 @@ view state = div []
   , label [] [ text "Segment (optional):"], select [value $ fromMaybe "Any" $ show <$> state.segment, onChange SegmentChange ] (toOptions Seq.segments)
   , label [] [ text "Serotype:"], select [value $ fromMaybe "Any" $ show <$> state.serotype, onChange SerotypeChange] (toOptions Seq.serotypes), br [] []
   , label [] [ text "Genotype:"], select [value $ fromMaybe "Any" $ show <$> state.genotype, onChange GenotypeChange] (toOptions Seq.genotypes), br [] []
+
+
+  , makeInput "type" _.type_    (fromMaybe "n/a" <<< _.type_) TypeChange state
+                                                                                                          , makeInput "subtype" _.subtype (fromMaybe "n/a" <<< _.subtype) SubTypeChange state
+                                                                                                          , makeInput "disease" _.disease  (fromMaybe "n/a" <<< _.disease) DiseaseChange state
+                                                                                                          , makeInput "Infection #" _.infectionNum  (fromMaybe "n/a" <<< _.infectionNum) InfectionNumChange state
+                                                                                                          , br [] []
   , label [] [ text "Minimum Year"], input [type_ "text", value $ show state.minYear, onChange MinYearChange ] []
   , label [] [ text "Maximum Year"], input [type_ "text", value $ show state.maxYear, onChange MaxYearChange ] []
   , label [] [text "Min date"], input [type_ "date", onChange MinDateChange ] []
@@ -230,61 +246,61 @@ query q = filter match q.db
     (==?) :: forall a. (Eq a) => Maybe a -> a -> Boolean
     (==?) a b = fromMaybe true ((== b) <$> a)
 
-seqs  = [example, example2, example3]
-
-example :: Seq.State
-example =  {
-       name     : "NameFoo"
-     , acc      : "AccFoo"
-     , year     : 1989
-     , country  : "USA"
-     , host     : Seq.Mosquito
-     , serotype : Seq.DENV1
-     , sequence : "ACTG"
-     , segment  : Nothing
-     , checked : false
-     , genotype : Nothing
-     , month : Nothing
-     , day : Nothing
-     , hostString : "Foohhost"
-     , date : fromJust $ Date.fromString "08/12/12"
-       }
-
-example2 :: Seq.State
-example2 =  {
-       name     : "NameToo"
-     , acc      : "AccToo"
-     , year     : 2012
-     , country  : "Jamaica"
-     , host     : Seq.Human
-     , serotype : Seq.DENV2
-     , sequence : "GGGGG"
-     , segment  : Nothing
-     , checked : false
-     , genotype : Nothing
-     , month : Nothing
-     , day : Nothing
-     , hostString : "Foohhost"
-     , date : fromJust $ Date.fromString "08/12/12"
-       }
-            
-example3 :: Seq.State
-example3 =  {
-  name     : "Influenza99"
-     , acc      : "Acc"
-     , year     : 1999
-     , month : Nothing
-     , day : Nothing
-     , date : fromJust  $ Date.fromString "08/12/12"
-     , country  : "USA"
-     , host     : Seq.Human
-     , hostString : "Foohhost"
-     , serotype : Seq.HN1
-     , sequence : "GGGGG"
-     , segment  : Just Seq.PB1
-     , checked : false
-     , genotype : Nothing
-       }
+--seqs  = [example, example2, example3]
+--
+--example :: Seq.State
+--example =  {
+--       name     : "NameFoo"
+--     , acc      : "AccFoo"
+--     , year     : 1989
+--     , country  : "USA"
+--     , host     : Seq.Mosquito
+--     , serotype : Seq.DENV1
+--     , sequence : "ACTG"
+--     , segment  : Nothing
+--     , checked : false
+--     , genotype : Nothing
+--     , month : Nothing
+--     , day : Nothing
+--     , hostString : "Foohhost"
+--     , date : fromJust $ Date.fromString "08/12/12"
+--       }
+--
+--example2 :: Seq.State
+--example2 =  {
+--       name     : "NameToo"
+--     , acc      : "AccToo"
+--     , year     : 2012
+--     , country  : "Jamaica"
+--     , host     : Seq.Human
+--     , serotype : Seq.DENV2
+--     , sequence : "GGGGG"
+--     , segment  : Nothing
+--     , checked : false
+--     , genotype : Nothing
+--     , month : Nothing
+--     , day : Nothing
+--     , hostString : "Foohhost"
+--     , date : fromJust $ Date.fromString "08/12/12"
+--       }
+--            
+--example3 :: Seq.State
+--example3 =  {
+--  name     : "Influenza99"
+--     , acc      : "Acc"
+--     , year     : 1999
+--     , month : Nothing
+--     , day : Nothing
+--     , date : fromJust  $ Date.fromString "08/12/12"
+--     , country  : "USA"
+--     , host     : Seq.Human
+--     , hostString : "Foohhost"
+--     , serotype : Seq.HN1
+--     , sequence : "GGGGG"
+--     , segment  : Just Seq.PB1
+--     , checked : false
+--     , genotype : Nothing
+--       }
             
   -- [ option [label x, value x] []]
 fromRightOrError (Right s) = s
