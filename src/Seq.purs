@@ -176,8 +176,6 @@ readCSV sep s = do
       Comma -> ","
       Tab -> "\t"
     lines' = map (S.split sep') $ lines s
-    
-toArray = foldr A.cons []
 
 lines :: String -> Array String
 lines = S.split "\n"
