@@ -1,5 +1,6 @@
 from toolz.dicttoolz import assoc, dissoc, merge
 from toolz.itertoolz import mapcat
+import sh
 from Bio import SeqIO
 from glob import glob
 import csv 
@@ -46,13 +47,17 @@ def row_for_segment(segment_dir, old_d, seg): # (str) -> str
    useless = map("segment{}".format, segments) + map("acc{}".format, segments)
    d = dissoc(old_d, *useless)
    # in some version parse on the empty string returns today's date; in another version it throws a value error.
-   try:
-       date = parse(old_d['date'])
-       date_info = dict(month=date.month, day=date.day, year=date.year)
-   except ValueError:
-       date = None 
-   if (date == None) or (date == parse("")):
-       date_info = {}
+   if 'date' in old_d:
+
+       try:
+           date = parse(old_d['date'])
+           date_info = dict(month=date.month, day=date.day, year=date.year)
+       except ValueError:
+           date = None 
+       if (date == None) or (date == parse("")):
+           date_info = {}
+   else:
+       date_info = dict([(x, old_d.get(x, "")) for x in ["day", "year", "month"]]) 
    return merge(d, date_info,
                 dict(segment=seg, year=old_d['year'],
                      sequence=str(seq.seq),
@@ -64,5 +69,26 @@ def main():
        segment_dir = sys.argv[2]
        assert os.path.isdir(segment_dir)
        run(fp, segment_dir)
-if __name__ == '__main__': main()       
        
+def download(): 
+   ints = range(3211, 3219)
+   fns = map(str.strip, """3.HAall.815seqsALGN.fas 
+    3.MPall.815seqsALGN.fas 
+    3.NAall.815seqsALGN.fas 
+    3.NPall.815seqsALGN.fas 
+    3.NSall.815seqsALGN.fas 
+    3.PAall.815seqsALGN.fas 
+    3.PB1all.815seqsALGN.fas 
+    3.PB2all.815seqsALGN.fas""".split("\n"))
+
+   os.mkdir("10571")
+   os.chdir("10571")
+   url_template = "https://vdbpm.org/attachments/download/{}/{}".format
+   urls = map(url_template, ints, fns)
+   for url in urls:
+       sh.wget(urls)
+
+if __name__ == '__main__':
+
+    download()
+    #main()       
