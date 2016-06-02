@@ -92,3 +92,5 @@ if __name__ == '__main__':
 
     download()
     #main()       
+
+database_issues = [10639, 10640, 10641, 10642, 10638, 10571, 10454]
